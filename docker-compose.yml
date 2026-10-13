@@ -1,0 +1,363 @@
+# Copyright 2026 Mechatronics Academy
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: '2.4'
+
+# Ardennes balena services. All use host networking: they share the Zenoh router on
+# 127.0.0.1:7447 (isaacbot-amr-zenoh-router, its own service so it keeps running while the others
+# restart), and the sensors receive UDP (NMEA 10110, RS16 6699/7788) directly. Each SSH-enabled
+# container has its own sshd port: platform 22, sensors 23, orchestrator 24,
+# drive-interface 25, vda5050 26.
+#
+# Environment
+#   Each service declares only the variables it reads. `KEY: 'value'` is a default; `KEY:`
+#   stays unset unless balenaCloud sets it. A balenaCloud variable overrides the default, and
+#   an all-services one reaches every container whether or not it is declared here.
+#   Names are ISAACBOT_AMR_<SCOPE>_<THING>: SCOPE is the container that acts on it (PLATFORM, ORCH,
+#   SENSORS, UI, VDA5050, NETWORK) or SYSTEM when several do - set an ISAACBOT_AMR_SYSTEM_* variable
+#   for all services so they agree. The Zenoh mode is ISAACBOT_AMR_ZENOH_MODE_<CONTAINER>.
+#   Reference: README.md "Device variables". Old names: tools/env_renames.yaml. balenaCloud
+#   values: tools/balena_env*.yaml (tools/balena_env.py).
+#
+# --- System (all services) ---
+# ISAACBOT_AMR_SYSTEM_NAMESPACE         ROS namespace and TF prefix
+# ISAACBOT_AMR_SYSTEM_USE_GPS           sensors: GNSS driver; platform: GPS fusion + GPS diagnostics group;
+#                                orchestrator: localization_source gps vs odom
+# ISAACBOT_AMR_SYSTEM_USE_LIDAR         sensors: RS16 driver; orchestrator: warns when off;
+#                                platform: Lidar diagnostics group
+# ISAACBOT_AMR_SYSTEM_USE_CAMERA        sensors: RealSense driver + camera perception; orchestrator: warns
+#                                when ISAACBOT_AMR_ORCH_NAV_USE_CAMERA or follow-me needs it;
+#                                platform: Gazebo camera in simulation only
+# ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE  follow-me: sensors run the fmoc person tracker (needs the camera),
+#                                the orchestrator the follow_me node (needs navigation, the
+#                                mission manager and AUTOMATIC drive mode)
+# ISAACBOT_AMR_SYSTEM_GPS_MAP_TF        platform: the global EKF publishes map -> odom (default false:
+#                                SLAM/AMCL own it); orchestrator: localization_source checks
+# ISAACBOT_AMR_SYSTEM_MOUNT_<IMU|GPS|LIDAR|CAMERA>_<X|Y|Z|ROLL|PITCH|YAW>
+#                                sensor mount pose relative to body_link (m, rad), read by
+#                                isaacbot_amr_description in the platform; unset = URDF default
+#
+# --- Zenoh session mode, one per container ---
+# ISAACBOT_AMR_ZENOH_MODE_<PLATFORM|ORCH|SENSORS|VDA5050>
+#                                peer = direct links between processes (platform default, so its
+#                                control loops never wait on the router); client = one link to the
+#                                router (the others' default). See README.md "ROS 2 over the isaacbot
+#                                LAN" before changing one
+#
+# --- isaacbot-amr-platform ---
+# ISAACBOT_AMR_PLATFORM_ENABLE          run isaacbot_amr_bringup; the orchestrator idles without it, so set it
+#                                for all services
+# ISAACBOT_AMR_PLATFORM_FOXGLOVE_<TOPIC|SERVICE>_WHITELIST
+#                                foxglove_bridge whitelists; unset = only what the web UIs use
+#                                (isaacbot_amr_web_bridges.launch.py), "['.*']" = everything
+#
+# --- isaacbot-amr-orchestrator ---
+# ISAACBOT_AMR_ORCH_NAVIGATION          run Nav 2 (needs ISAACBOT_AMR_PLATFORM_ENABLE)
+# ISAACBOT_AMR_ORCH_MISSION_MANAGER     run the mission manager on top of Nav 2 (AUTOMATIC driving mode,
+#                                GoTo, VDA 5050 orders)
+# ISAACBOT_AMR_ORCH_DRIVE_MODE          run isaacbot_amr_drive_mode (independent of Nav 2); off = the drive UI's
+#                                joystick reaches nothing
+# ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE  driving mode at boot: assisted (lidar slow/stop) | manual
+# ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE odom | gps | slam | amcl | indoor, overrides ISAACBOT_AMR_SYSTEM_USE_GPS;
+#                                indoor = drive-UI mapping + maps in /maps. Also read by the
+#                                sensors (GNSS faults only warn for indoor/slam/amcl) and vda5050
+#                                (order frame)
+# ISAACBOT_AMR_ORCH_NAV_MAP             map yaml (full path), default isaacbot_amr_navigation's empty_world;
+#                                required for amcl - build one with slam first
+# ISAACBOT_AMR_ORCH_NAV_USE_CAMERA      add the camera depth cloud to the local costmap (needs the camera
+#                                and a measured camera mount)
+# ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_<X|Y|YAW>
+#                                AMCL's start pose in the map frame; unset = 0,0,0
+#
+# --- isaacbot-amr-sensors ---
+# ISAACBOT_AMR_SENSORS_ENABLE           run the sensor payload drivers at all
+# ISAACBOT_AMR_SENSORS_CAMERA_*         RealSense rate/resolution, depth cloud, AprilTags, YOLO detection
+# ISAACBOT_AMR_SENSORS_TERRAIN          ground slope from the lidar cloud (needs ISAACBOT_AMR_SYSTEM_USE_LIDAR)
+#
+# --- isaacbot-amr-drive-interface ---
+# ISAACBOT_AMR_UI_*                     on/off, http port, login, teleop limits (m/s, rad/s), rim-speed
+#                                limit + track width (keep equal to isaacbot_amr_crsf_teleop.yaml), stick
+#                                expo (0 linear .. 1 softest); no password = the UI is not served
+#
+# --- isaacbot-amr-vda5050 ---
+# ISAACBOT_AMR_VDA5050_ENABLE           run the VDA 5050 fleet interface (orders need
+#                                ISAACBOT_AMR_ORCH_MISSION_MANAGER=true)
+# ISAACBOT_AMR_VDA5050_*                local Mosquitto, broker host/port/user/password, TLS (auto = on when
+#                                a user is set), manufacturer + serial number (MQTT topic levels),
+#                                order frame (unset = follows the localization source)
+
+services:
+  # The Zenoh router (rmw_zenohd) every ROS process connects to. Its own service, so platform
+  # restarts and releases don't take the ROS graph down: the image only changes with the ROS
+  # release. Binds 127.0.0.1:7447 plus ISAACBOT_AMR_SYSTEM_LAN_IP (default 192.168.1.201) for PCs on
+  # the isaacbot LAN (setup_isaacbot_amr_pc.sh). It reads only ISAACBOT_AMR_SYSTEM_LAN_IP, which balena injects
+  # from the balenaCloud variable, so it declares no environment.
+  isaacbot-amr-zenoh-router:
+    build:
+      context: ./isaacbot_amr_zenoh_router
+    restart: always
+    # rmw_zenohd starts closing on SIGTERM but, with clients connected, never finishes. It holds
+    # no state, so kill it after 2 s: a restart interrupts cross-container traffic for ~3 s.
+    stop_grace_period: 2s
+    network_mode: host
+    healthcheck:
+      # Script in the image (TCP connect to 127.0.0.1:7447); no `$` here (balena's compose
+      # parser mangles `$$`).
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # The isaacbot itself: isaacbot_amr_bringup (ros2_control, drivers, safety, localization, LEDs, teleop)
+  # and the web bridges (foxglove_bridge, rosbridge). sshd on 22.
+  isaacbot-amr-platform:
+    build:
+      context: ./isaacbot_amr_platform
+    # Start order only; start.sh still waits until the router accepts connections.
+    depends_on:
+      - isaacbot-amr-zenoh-router
+    # Direct hardware access for the isaacbot drivers.
+    privileged: true
+    restart: always
+    network_mode: host
+    labels:
+      io.balena.features.dbus: 'true'
+      # isaacbot_amr_safety powers off the device through the Supervisor API (/v1/shutdown).
+      io.balena.features.supervisor-api: '1'
+      io.balena.features.balena-socket: 'true'
+      io.balena.features.sysfs: 'true'
+    # isaacbot_amr_crsf_teleop keeps the measured RC stick calibration in
+    # /config/isaacbot_amr_crsf_teleop/rc_calibration.yaml (see the isaacbot-config volume).
+    volumes:
+      - isaacbot-config:/config
+    environment:
+      ISAACBOT_AMR_SYSTEM_NAMESPACE: 'isaacbot'
+      ISAACBOT_AMR_SYSTEM_USE_GPS: 'false'
+      ISAACBOT_AMR_SYSTEM_USE_LIDAR: 'false'
+      ISAACBOT_AMR_SYSTEM_USE_CAMERA: 'false'
+      ISAACBOT_AMR_SYSTEM_GPS_MAP_TF: 'false'
+      ISAACBOT_AMR_SYSTEM_MOUNT_IMU_X:
+      ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Y:
+      ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Z:
+      ISAACBOT_AMR_SYSTEM_MOUNT_IMU_ROLL:
+      ISAACBOT_AMR_SYSTEM_MOUNT_IMU_PITCH:
+      ISAACBOT_AMR_SYSTEM_MOUNT_IMU_YAW:
+      ISAACBOT_AMR_SYSTEM_MOUNT_GPS_X:
+      ISAACBOT_AMR_SYSTEM_MOUNT_GPS_Y:
+      ISAACBOT_AMR_SYSTEM_MOUNT_GPS_Z:
+      ISAACBOT_AMR_SYSTEM_MOUNT_GPS_ROLL:
+      ISAACBOT_AMR_SYSTEM_MOUNT_GPS_PITCH:
+      ISAACBOT_AMR_SYSTEM_MOUNT_GPS_YAW:
+      ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_X:
+      ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_Y:
+      ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_Z:
+      ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_ROLL:
+      ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_PITCH:
+      ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_YAW:
+      ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_X:
+      ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_Y:
+      ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_Z:
+      ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_ROLL:
+      ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_PITCH:
+      ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_YAW:
+      ISAACBOT_AMR_ZENOH_MODE_PLATFORM: 'peer'
+      ISAACBOT_AMR_PLATFORM_ENABLE: 'true'
+      ISAACBOT_AMR_PLATFORM_FOXGLOVE_TOPIC_WHITELIST:
+      ISAACBOT_AMR_PLATFORM_FOXGLOVE_SERVICE_WHITELIST:
+
+  # Autonomy: Nav 2 (isaacbot_amr_navigation), the mission manager, follow-me and the driving modes
+  # (isaacbot_amr_drive_mode). Idles while the platform is disabled. sshd on 24.
+  isaacbot-amr-orchestrator:
+    build:
+      context: ./isaacbot_amr_orchestrator
+    # Start order only; start.sh still waits until the router accepts connections.
+    depends_on:
+      - isaacbot-amr-zenoh-router
+    restart: always
+    network_mode: host
+    # Maps: map_autosaver writes /maps/map.{yaml,pgm} while localization_source=slam, and amcl
+    # reads one back through ISAACBOT_AMR_ORCH_NAV_MAP (see the isaacbot-maps volume).
+    volumes:
+      - isaacbot-maps:/maps
+    environment:
+      ISAACBOT_AMR_SYSTEM_NAMESPACE: 'isaacbot'
+      ISAACBOT_AMR_SYSTEM_USE_GPS: 'false'
+      ISAACBOT_AMR_SYSTEM_USE_LIDAR: 'false'
+      ISAACBOT_AMR_SYSTEM_USE_CAMERA: 'false'
+      ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE: 'false'
+      ISAACBOT_AMR_SYSTEM_GPS_MAP_TF: 'false'
+      ISAACBOT_AMR_ZENOH_MODE_ORCH: 'client'
+      ISAACBOT_AMR_PLATFORM_ENABLE: 'true'
+      ISAACBOT_AMR_ORCH_NAVIGATION: 'false'
+      ISAACBOT_AMR_ORCH_MISSION_MANAGER: 'false'
+      ISAACBOT_AMR_ORCH_DRIVE_MODE: 'true'
+      ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE: 'assisted'
+      ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:
+      ISAACBOT_AMR_ORCH_NAV_MAP:
+      ISAACBOT_AMR_ORCH_NAV_USE_CAMERA: 'false'
+      ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X:
+      ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_Y:
+      ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_YAW:
+
+  # Sensor payload: GNSS (isaacbot_amr_gps), RS16 lidar, RealSense camera (isaacbot_amr_sensors) and the
+  # perception nodes next to them (isaacbot_amr_perception: AprilTags, YOLO, terrain, fmoc person
+  # tracking). Idle unless ISAACBOT_AMR_SENSORS_ENABLE=true. sshd on 23.
+  isaacbot-amr-sensors:
+    build:
+      context: ./isaacbot_amr_sensors
+    # Start order only; start.sh still waits until the router accepts connections.
+    depends_on:
+      - isaacbot-amr-zenoh-router
+    restart: always
+    network_mode: host
+    # The RealSense D435i enumerates under /dev/bus/usb and /dev/video* and re-enumerates on
+    # every re-plug, so a fixed `devices:` list would not follow it. Privileged alone does not
+    # either (Docker's /dev is filled once at start); start.sh mounts the kernel's devtmpfs over
+    # /dev, which needs privileged. Only needed with ISAACBOT_AMR_SYSTEM_USE_CAMERA=true.
+    privileged: true
+    environment:
+      ISAACBOT_AMR_SYSTEM_NAMESPACE: 'isaacbot'
+      ISAACBOT_AMR_SYSTEM_USE_GPS: 'false'
+      ISAACBOT_AMR_SYSTEM_USE_LIDAR: 'false'
+      ISAACBOT_AMR_SYSTEM_USE_CAMERA: 'false'
+      ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE: 'false'
+      ISAACBOT_AMR_ZENOH_MODE_SENSORS: 'client'
+      ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:
+      ISAACBOT_AMR_SENSORS_ENABLE: 'false'
+      ISAACBOT_AMR_SENSORS_CAMERA_FPS: '15'
+      ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_PROFILE: '424x240'
+      ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD: 'false'
+      ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS: 'false'
+      ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS_DECIMATE: '2.0'
+      ISAACBOT_AMR_SENSORS_CAMERA_DETECTION: 'false'
+      ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MODEL:
+      ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_GPU: 'false'
+      ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MAX_RATE: '3.0'
+      ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_LABELS: 'person'
+      ISAACBOT_AMR_SENSORS_PERSON_DETECTION: 'off'
+      ISAACBOT_AMR_SENSORS_TERRAIN: 'false'
+
+  # Drive UI (isaacbot_amr_drive_interface), served by nginx with a login on ISAACBOT_AMR_UI_PORT. Its joystick
+  # drives through isaacbot_amr_drive_mode in the orchestrator. Not served without ISAACBOT_AMR_UI_PASSWORD
+  # (the container idles); sshd on 25.
+  isaacbot-amr-drive-interface:
+    build:
+      context: ./isaacbot_amr_drive_interface
+    restart: always
+    network_mode: host
+    environment:
+      ISAACBOT_AMR_SYSTEM_NAMESPACE: 'isaacbot'
+      ISAACBOT_AMR_UI_ENABLE: 'true'
+      ISAACBOT_AMR_UI_PORT: '5000'
+      ISAACBOT_AMR_UI_USER: 'isaacbot'
+      ISAACBOT_AMR_UI_PASSWORD:
+      ISAACBOT_AMR_UI_MAX_LINEAR: '1.0'
+      ISAACBOT_AMR_UI_MAX_ANGULAR: '1.0'
+      ISAACBOT_AMR_UI_MAX_RIM_SPEED: '1.7'
+      ISAACBOT_AMR_UI_TRACK_WIDTH: '1.0204'
+      ISAACBOT_AMR_UI_EXPO_LINEAR: '0.3'
+      ISAACBOT_AMR_UI_EXPO_ANGULAR: '0.5'
+    healthcheck:
+      # Script in the image (reads ISAACBOT_AMR_UI_PORT); no `$` here (balena's compose parser mangles
+      # `$$`).
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # VDA 5050 fleet interface: InOrbit's connector + isaacbot_amr_vda5050_adapter (isaacbot_amr_vda5050), driving
+  # through isaacbot_amr_mission_manager in the orchestrator. Idle unless ISAACBOT_AMR_VDA5050_ENABLE=true.
+  # Runs its own Mosquitto (1883, WebSockets 9001) with ISAACBOT_AMR_VDA5050_LOCAL_BROKER=true. sshd on 26.
+  isaacbot-amr-vda5050:
+    build:
+      context: ./isaacbot_amr_vda5050
+    # Start order only; start.sh still waits until the router accepts connections.
+    depends_on:
+      - isaacbot-amr-zenoh-router
+    restart: always
+    network_mode: host
+    environment:
+      ISAACBOT_AMR_SYSTEM_NAMESPACE: 'isaacbot'
+      ISAACBOT_AMR_SYSTEM_USE_GPS: 'false'
+      ISAACBOT_AMR_ZENOH_MODE_VDA5050: 'client'
+      ISAACBOT_AMR_ORCH_MISSION_MANAGER: 'false'
+      ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:
+      ISAACBOT_AMR_VDA5050_ENABLE: 'false'
+      ISAACBOT_AMR_VDA5050_LOCAL_BROKER: 'true'
+      ISAACBOT_AMR_VDA5050_BROKER_HOST: '127.0.0.1'
+      ISAACBOT_AMR_VDA5050_BROKER_PORT: '1883'
+      ISAACBOT_AMR_VDA5050_BROKER_USER:
+      ISAACBOT_AMR_VDA5050_BROKER_PASSWORD:
+      ISAACBOT_AMR_VDA5050_BROKER_TLS: 'auto'
+      ISAACBOT_AMR_VDA5050_MANUFACTURER: 'MechatronicsAcademy'
+      ISAACBOT_AMR_VDA5050_SERIAL_NUMBER: 'ardennes'
+      ISAACBOT_AMR_VDA5050_MAP_FRAME:
+    healthcheck:
+      # Script in the image (TCP connect to the local broker when there is one); no `$` here
+      # (balena's compose parser mangles `$$`).
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # Wi-Fi uplink page (github.com/RaduPotlog/rover_networking, rutx11/): switches the RUTX11's
+  # Wi-Fi client to another network in place and keeps firewall zones, NAT and forwarding
+  # consistent, so the wired LAN and the isaacbot AP keep internet. Talks to the router over SSH;
+  # the router rolls a change back itself if the new uplink does not come up. No ROS, no sshd.
+  # Idles without NETUI_PASSWORD / RUTX11_PASSWORD.
+  isaacbot-amr-network:
+    build:
+      context: ./isaacbot_amr_network
+    restart: always
+    network_mode: host
+    volumes:
+      - isaacbot-network:/data
+    environment:
+      ISAACBOT_AMR_NETWORK_ENABLE: 'true'
+      NETUI_PORT: '5080'
+      NETUI_USER: 'root'
+      # Set both as service variables of isaacbot-amr-network, not fleet-wide (see README).
+      NETUI_PASSWORD:
+      RUTX11_PASSWORD:
+      RUTX11_HOST: '192.168.1.1'
+      RUTX11_USER: 'root'
+      # 'auto' finds the Wi-Fi uplink in the config (RutOS names it WWAN1, wan1, wan2, ...).
+      UPLINK_IFACE: 'auto'
+      UPLINK_ZONE: 'wwan'
+      LAN_ZONE: 'lan'
+      CLIENT_NETS: 'lan WWAN'
+    healthcheck:
+      # Script in the image (reads NETUI_PORT); no `$` here (balena's compose parser mangles `$$`).
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+# Named volumes, not bind mounts: a balenaOS device filesystem is read-only outside them. They
+# survive container restarts and image updates, but not a device reprovision - copy the data
+# off with scp (ports above).
+volumes:
+  # SLAM maps (orchestrator): map_autosaver output, read back by amcl. `scp -P 24
+  # root@<device>:/maps/map.* .`
+  isaacbot-maps:
+  # Measured RC stick calibration (platform, isaacbot_amr_crsf_teleop). Clients reach it through the
+  # node's rc/calibration services, never by reading the file. `scp
+  # root@<device>:/config/isaacbot_amr_crsf_teleop/rc_calibration.yaml .`
+  isaacbot-config:
+  # Router host key (pinned on first use) and the log of uplink changes (network).
+  isaacbot-network:

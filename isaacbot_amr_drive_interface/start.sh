@@ -1,0 +1,120 @@
+#!/bin/bash -e
+# Copyright 2026 Mechatronics Academy
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Entrypoint of isaacbot-amr-drive-interface: start sshd, render the runtime config (config.json for
+# the page) and the login, then run nginx - supervising both, like the other isaacbot containers.
+
+# All long-running processes we supervise. Populated as each is started.
+CHILD_PIDS=()
+
+terminate_children() {
+  if [ "${#CHILD_PIDS[@]}" -gt 0 ]; then
+    kill -TERM "${CHILD_PIDS[@]}" 2>/dev/null || true
+    wait "${CHILD_PIDS[@]}" 2>/dev/null || true
+  fi
+}
+
+# Forward container stop/kill signals to every supervised process instead
+# of only whichever one happens to be PID 1.
+trap 'terminate_children; exit 0' TERM INT
+
+rm -f /tmp/drive-interface-idle
+
+# **SSHD background (keep alive)** - started before the gates below, so the container is
+# reachable even while the drive interface idles. Port 25 (set in the image's sshd_config
+# drop-in): platform 22, sensors 23, orchestrator 24, drive-interface 25, vda5050 26.
+/usr/sbin/sshd -D &
+SSHD_PID=$!
+CHILD_PIDS+=("$SSHD_PID")
+echo "sshd started on port 25 (PID: $SSHD_PID)"
+
+norm_bool() {
+  case "${1:-$2}" in
+    [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]|[Oo][Nn]) echo true ;;
+    *) echo false ;;
+  esac
+}
+
+# Idle (sshd only) rather than exit: `restart: always` would otherwise crash-loop the service
+# and take the SSH session with it. Changing a balenaCloud variable restarts the container,
+# which re-reads them here.
+idle() {
+  echo "$1; idling (sshd on 25 stays up)"
+  touch /tmp/drive-interface-idle  # see healthcheck.sh
+  # Not `exec sleep infinity`: waiting on sshd idles just as well and keeps signals forwarded.
+  wait "$SSHD_PID" || true
+  terminate_children
+  exit 0
+}
+
+if [ "$(norm_bool "${ISAACBOT_AMR_UI_ENABLE:-}" true)" != true ]; then
+  idle "Drive interface disabled (ISAACBOT_AMR_UI_ENABLE=false)"
+fi
+
+export ISAACBOT_AMR_UI_PORT="${ISAACBOT_AMR_UI_PORT:-5000}"
+export ISAACBOT_AMR_UI_BRIDGE="${ISAACBOT_AMR_UI_BRIDGE:-127.0.0.1:8765}"
+ISAACBOT_AMR_UI_USER="${ISAACBOT_AMR_UI_USER:-isaacbot}"
+
+# foxglove_bridge can drive the isaacbot and trip the e-stop; never serve it without a login.
+if [ -z "${ISAACBOT_AMR_UI_PASSWORD:-}" ]; then
+  echo "ERROR: ISAACBOT_AMR_UI_PASSWORD is not set - refusing to expose the drive interface without a login" >&2
+  idle "Drive interface not served"
+fi
+htpasswd -bcB /etc/nginx/drive.htpasswd "$ISAACBOT_AMR_UI_USER" "$ISAACBOT_AMR_UI_PASSWORD" >/dev/null
+
+# JSON-escape the few strings that go into config.json.
+json_str() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+num_or() { [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]] && echo "$1" || echo "$2"; }
+
+cat > /tmp/drive-config.json <<JSON
+{
+  "namespace": "$(json_str "${ISAACBOT_AMR_SYSTEM_NAMESPACE:-}")",
+  "robotName": "$(json_str "${ISAACBOT_AMR_UI_ROBOT_NAME:-${ISAACBOT_AMR_SYSTEM_NAMESPACE:-isaacbot}}")",
+  "maxLinear": $(num_or "${ISAACBOT_AMR_UI_MAX_LINEAR:-}" 1.0),
+  "maxAngular": $(num_or "${ISAACBOT_AMR_UI_MAX_ANGULAR:-}" 1.0),
+  "maxRimSpeed": $(num_or "${ISAACBOT_AMR_UI_MAX_RIM_SPEED:-}" 1.7),
+  "trackWidth": $(num_or "${ISAACBOT_AMR_UI_TRACK_WIDTH:-}" 1.0204),
+  "expoLinear": $(num_or "${ISAACBOT_AMR_UI_EXPO_LINEAR:-}" 0.3),
+  "expoAngular": $(num_or "${ISAACBOT_AMR_UI_EXPO_ANGULAR:-}" 0.5),
+  "auxOutputNames": "$(json_str "${ISAACBOT_AMR_UI_AUX_OUTPUT_NAMES:-}")",
+  "auxInputNames": "$(json_str "${ISAACBOT_AMR_UI_AUX_INPUT_NAMES:-}")"
+}
+JSON
+
+envsubst '${ISAACBOT_AMR_UI_PORT} ${ISAACBOT_AMR_UI_BRIDGE}' \
+  < /etc/nginx/drive.conf.template > /tmp/nginx.conf
+nginx -t -c /tmp/nginx.conf
+
+nginx -c /tmp/nginx.conf -g 'daemon off;' &
+NGINX_PID=$!
+CHILD_PIDS+=("$NGINX_PID")
+echo "Drive interface on :${ISAACBOT_AMR_UI_PORT} (user ${ISAACBOT_AMR_UI_USER}), bridge ${ISAACBOT_AMR_UI_BRIDGE} (PID: $NGINX_PID)"
+
+# **Supervise** - block until the first supervised process exits, then tear down the other and
+# exit so `restart: always` brings the whole container back. `|| EXIT_CODE=$?` because this
+# script runs under `bash -e`, which would otherwise skip the teardown on a non-zero exit.
+EXIT_CODE=0
+wait -n "${CHILD_PIDS[@]}" || EXIT_CODE=$?
+
+for entry in "sshd:$SSHD_PID" "nginx:$NGINX_PID"; do
+  name=${entry%%:*}
+  pid=${entry##*:}
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "Supervised process '$name' (PID $pid) exited (code $EXIT_CODE)"
+  fi
+done
+
+terminate_children
+exit "$EXIT_CODE"

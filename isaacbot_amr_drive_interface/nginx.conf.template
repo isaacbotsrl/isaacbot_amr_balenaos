@@ -1,0 +1,85 @@
+# Copyright 2026 Mechatronics Academy
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# isaacbot-amr-drive-interface: serves the drive UI and proxies the foxglove_bridge websocket.
+# Rendered by start.sh (envsubst on ${ISAACBOT_AMR_UI_PORT} and ${ISAACBOT_AMR_UI_BRIDGE}).
+worker_processes 1;
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 256;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log off;
+    sendfile on;
+    server_tokens off;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    server {
+        # network_mode: host - this is the isaacbot's port 5000, as on the Boxer (OTTO App)
+        # and Clearpath IndoorNav.
+        listen ${ISAACBOT_AMR_UI_PORT};
+
+        root /usr/share/nginx/drive;
+        index index.html;
+
+        # foxglove_bridge has no authentication of its own, so it is only reachable through
+        # here, behind the same login as the page. Browsers resend the page's basic-auth
+        # credentials on the same-origin websocket upgrade.
+        auth_basic "Isaacbot drive interface";
+        auth_basic_user_file /etc/nginx/drive.htpasswd;
+
+        location = /healthz {
+            auth_basic off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        location = /ws {
+            proxy_pass http://${ISAACBOT_AMR_UI_BRIDGE}/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            # Sec-WebSocket-Protocol (foxglove.sdk.v1 / foxglove.websocket.v1) is forwarded as-is.
+            # The bridge streams continuously; the teleop loop sends at 10 Hz. Long timeouts
+            # so an idle map view is not cut off.
+            proxy_read_timeout 1h;
+            proxy_send_timeout 1h;
+            proxy_buffering off;
+        }
+
+        location = /config.json {
+            add_header Cache-Control "no-store";
+            alias /tmp/drive-config.json;
+        }
+
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+
+        location / {
+            add_header Cache-Control "no-cache";
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}

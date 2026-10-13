@@ -1,0 +1,196 @@
+# Copyright 2026 Mechatronics Academy
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+FROM ubuntu:26.04
+
+# Avoid interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=lyrical
+
+# Update and install essentials (ROS2-ready)
+RUN apt-get update && apt-get install -y \
+    curl wget gnupg lsb-release software-properties-common \
+    build-essential git nano htop \
+    && rm -rf /var/lib/apt/lists/*
+
+##################################### Claude Code CLI #######################################
+
+# Install Node.js (LTS) via NodeSource, then the Claude Code CLI
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g @anthropic-ai/claude-code
+
+##################################### ros-mcp-server #########################
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Bake the package into the image at build time (no PyPI fetch needed at
+# runtime on the robot).
+#
+# fastmcp is held below 4 deliberately. ros-mcp 3.1.0 asks only for
+# `fastmcp>=2.11.3`, but fastmcp 4 moved `fastmcp.tools.tool` to
+# `fastmcp.tools.base`, so an unconstrained install resolves fastmcp 4 and
+# ros-mcp dies on import with ModuleNotFoundError - which Claude Code reports
+# only as a CONNECTION_CLOSED server. Drop the constraint once ros-mcp ships
+# fastmcp 4 support. ros-mcp itself stays unpinned, so rebuilds still pick up
+# new releases.
+RUN uv tool install ros-mcp --with "fastmcp<4"
+
+# Register with Claude Code, scoped to the user so it's available no
+# matter which directory `claude` is started from over SSH.
+RUN claude mcp add ros-mcp --scope user -- ros-mcp --transport=stdio
+
+RUN apt-get update && apt-get install -y openssh-server \
+    && mkdir -p /var/run/sshd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure SSH
+RUN echo 'root:root' | chpasswd \
+    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed -i 's/UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+
+# Expose SSH port
+EXPOSE 22
+
+RUN add-apt-repository universe
+RUN apt-get update && apt-get install -y alsa-topology-conf \
+    && apt-mark hold alsa-topology-conf \
+    && rm -rf /var/lib/apt/lists/*
+
+##################################### ROS2 install #######################################
+
+WORKDIR /root
+
+RUN apt-get update && apt-get install -y \
+    locales \
+    curl \
+    gnupg2 \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up locale
+RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+
+# Add ROS 2 apt repository
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+SHELL ["/bin/bash", "-c"]
+
+# Install ROS 2 Lyrical
+RUN apt-get update && apt-get install -y \
+    ros-dev-tools \
+    ros-${ROS_DISTRO}-desktop \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-ament-cmake \
+    python3-colcon-common-extensions \
+    && rm -rf /var/lib/apt/lists/*
+
+# rosbridge (websocket + rosapi) — kept only for ros-mcp-server (ROS
+# introspection/control); the web dashboards use foxglove_bridge. The full
+# suite pulls in rosapi as a dependency.
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-rosbridge-suite \
+    && rm -rf /var/lib/apt/lists/*
+
+# Source ROS 2 in bashrc
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
+RUN echo "export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> /root/.bashrc
+# ros2 CLI over SSH: the Zenoh client settings start.sh writes
+# (empty with ISAACBOT_AMR_ZENOH_MODE_PLATFORM=peer).
+RUN echo '[ -r /tmp/isaacbot_amr_zenoh_cli.env ] && . /tmp/isaacbot_amr_zenoh_cli.env' >> /root/.bashrc
+RUN echo "export PATH=\"\$PATH:/root/.local/bin\"" >> /root/.bashrc
+
+####################################### Install ISAACBOT AMR Firmware ##########################
+RUN apt-get update && apt-get install -y libyaml-cpp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p ~/ros2_ws/ardennes
+WORKDIR /root/ros2_ws/ardennes
+
+# Tracks the tip of the `main` branch by default, so every `--nocache`
+# build (see README) picks up the latest commit; pin to a specific SHA with
+# `--build-arg ISAACBOT_AMR_ROS_REF=<sha>` to pin the isaacbot source instead.
+# Imported dependencies and package versions remain independently versioned.
+ARG ISAACBOT_AMR_ROS_REF=main
+RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
+    && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
+RUN echo "export ISAACBOT_AMR_ROS_BUILD_TYPE=hardware" >> /root/.bashrc
+RUN vcs import src < src/isaacbot_amr_ros/isaacbot_amr_metapackage/hardware_deps.repos
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y usbutils plocate \
+    && rm -rf /var/lib/apt/lists/*
+RUN add-apt-repository universe
+RUN rosdep init
+ENV ISAACBOT_AMR_ROS_BUILD_TYPE=hardware
+RUN rosdep update --rosdistro "${ROS_DISTRO}"
+# apt-get update belongs in this same RUN. rosdep does not refresh the apt index itself - it
+# shells out to a bare `apt-get install -y <pkg>`, once per package - so it needs lists that
+# some earlier layer happened to leave behind. Keeping the update here makes this layer
+# self-contained instead of depending on whichever apt layer above it skipped its cleanup.
+RUN apt-get update \
+    && rosdep install --from-paths src --rosdistro "${ROS_DISTRO}" -y -i \
+    && rm -rf /var/lib/apt/lists/*
+# isaacbot_amr_safety powers off the ROS controller with dbus-send (systemd-logind over the host D-Bus
+# socket, io.balena.features.dbus) when the balena Supervisor API is unavailable. dbus has no
+# rosdep key, so it is installed here.
+RUN apt-get update && apt-get install -y dbus-bin \
+    && rm -rf /var/lib/apt/lists/*
+# vcgencmd (get_throttled, bootloader_config, pmic_read_adc) for diagnosing the CM5 power supply;
+# balenaOS does not ship it on the host. On Ubuntu 26.04 it is in raspi-utils-core (noble had it
+# in libraspberrypi-bin). It talks to the firmware over /dev/vcio, which this privileged service sees.
+RUN apt-get update && apt-get install -y raspi-utils-core \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /root/ros2_ws/ardennes/src/isaacbot_amr_cppuprofile
+RUN cmake -Bbuild . -DPROFILE_ENABLED=ON
+RUN cmake --build build
+WORKDIR /root/ros2_ws/ardennes/src/isaacbot_amr_cppuprofile/build
+RUN make install
+
+# isaacbot_amr_modbus used to be built and `make install`ed here, the way isaacbot_amr_cppuprofile still is
+# above. It is now an ament package, so the colcon build below picks it up in dependency order
+# from isaacbot_amr_modbus_driver's <depend> - no manual step, and no libnet1-dev either (the library
+# included <libnet.h> but never linked it).
+
+RUN apt-get update && apt-get install -y libzmq3-dev sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+# BehaviorTree.CPP comes only from apt (ros-lyrical-behaviortree-cpp, installed by rosdep for
+# isaacbot_amr_safety). Do not also build a copy into /usr/local: isaacbot_amr_safety compiles against the
+# /opt/ros headers, and a second, different-version libbehaviortree_cpp.so on the library
+# path segfaults both safety nodes at startup (ABI mismatch) - which kills the LEDs.
+
+RUN echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib" >> /root/.bashrc
+
+WORKDIR /root/ros2_ws/ardennes
+ENV ISAACBOT_AMR_ROS_BUILD_TYPE=hardware
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --symlink-install --packages-up-to isaacbot_amr_metapackage --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+RUN echo "source /root/ros2_ws/ardennes/install/setup.bash" >> /root/.bashrc
+
+WORKDIR /root
+
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Start SSH daemon directly (no systemd needed)
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+CMD ["/usr/local/bin/start.sh"]
