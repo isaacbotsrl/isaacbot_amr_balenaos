@@ -314,7 +314,7 @@ services:
       start_period: 30s
       retries: 3
 
-  # Wi-Fi uplink page (github.com/RaduPotlog/rover_networking, rutx11/): switches the RUTX11's
+  # Wi-Fi uplink page (github.com/isaacbotsrl/isaacbot_amr_networking, rutx11/): switches the RUTX11's
   # Wi-Fi client to another network in place and keeps firewall zones, NAT and forwarding
   # consistent, so the wired LAN and the isaacbot AP keep internet. Talks to the router over SSH;
   # the router rolls a change back itself if the new uplink does not come up. No ROS, no sshd.

@@ -23,7 +23,7 @@ service's build context in `docker-compose.yml`:
 | `isaacbot-amr-sensors` | `isaacbot_amr_sensors/` | Ubuntu 26.04 + ROS 2 Lyrical + [`isaacbot_amr_sensors`](https://github.com/isaacbotsrl/isaacbot_amr_sensors) — the sensor payload: RUTX11 GNSS driver (`gps/fix`), RoboSense RS16 lidar driver (`scan`, `rslidar_points`) and RealSense D435i driver (`camera/*`), with their diagnostics, and [`isaacbot_amr_perception`](https://github.com/isaacbotsrl/isaacbot_amr_perception) on top of them (AprilTag, detection, terrain slope, fmoc person tracking), plus an sshd on port 23 and the Claude Code CLI with `ros-mcp` registered. Drivers only publish, so a different sensor changes this image only; `start.sh` is the entrypoint |
 | `isaacbot-amr-drive-interface` | `isaacbot_amr_drive_interface/` | nginx + [`isaacbot_amr_drive_interface`](https://github.com/isaacbotsrl/isaacbot_amr_drive_interface) — Boxer / IndoorNav-style drive UI on port 5000 behind a login; nginx proxies `/ws` to foxglove_bridge (no ROS inside). Plus an sshd on port 25 and the Claude Code CLI with `ros-mcp` registered. See [Drive interface](#drive-interface) |
 | `isaacbot-amr-vda5050` | `isaacbot_amr_vda5050/` | Ubuntu 26.04 + ROS 2 Lyrical + [`isaacbot_amr_vda5050`](https://github.com/isaacbotsrl/isaacbot_amr_vda5050) — the VDA 5050 2.0 fleet interface (InOrbit's MQTT connector, vendored, driving the isaacbot through `isaacbot_amr_mission_manager`), an optional Mosquitto broker (1883, WebSockets 9001), plus an sshd on port 26 and the Claude Code CLI with `ros-mcp` registered. Idle unless enabled, see [VDA 5050](#vda-5050) |
-| `isaacbot-amr-network` | `isaacbot_amr_network/` | Python + [`rover_networking`](https://github.com/RaduPotlog/rover_networking) (`rutx11/`): web page on port 5080 (behind a login) that switches the RUTX11's Wi-Fi uplink in place and keeps the router's firewall/NAT consistent (no ROS, no sshd). See [Network uplink page](#network-uplink-page) |
+| `isaacbot-amr-network` | `isaacbot_amr_network/` | Python + [`isaacbot_amr_networking`](https://github.com/isaacbotsrl/isaacbot_amr_networking) (`rutx11/`): web page on port 5080 (behind a login) that switches the RUTX11's Wi-Fi uplink in place and keeps the router's firewall/NAT consistent (no ROS, no sshd). See [Network uplink page](#network-uplink-page) |
 
 ```
 isaacbot_amr_balenaos/
@@ -138,7 +138,7 @@ balena push g_potlog_radu/rovera1 --nocache
 `--nocache` matters: every service fetches its application source with
 `git clone` during the build (`isaacbot_amr_ros`; `isaacbot_amr_ros` + `isaacbot_amr_orchestrator`;
 `isaacbot_amr_sensors`; `isaacbot_amr_drive_interface`; and
-`rover_networking` respectively). Those
+`isaacbot_amr_networking` respectively). Those
 clones sit in cached layers, so a plain `balena push` will happily ship stale application
 code.
 
@@ -357,10 +357,10 @@ keep internet. It also repairs the damage a RutOS *Scan → Join* does. Every ch
 back by the router itself if the new uplink doesn't come up.
 
 The application and all its documentation live in the `rutx11/` folder of
-[rover_networking](https://github.com/RaduPotlog/rover_networking/tree/master/rutx11): usage,
+[isaacbot_amr_networking](https://github.com/isaacbotsrl/isaacbot_amr_networking/tree/main/rutx11): usage,
 checks, the rollback design, running it from a laptop, and troubleshooting. This directory
-holds only the container glue. The Dockerfile clones rover_networking at
-`ISAACBOT_AMR_NETWORKING_REF` (default `master`), runs the tests in `rutx11/`, and fails the build if
+holds only the container glue. The Dockerfile clones isaacbot_amr_networking at
+`ISAACBOT_AMR_NETWORKING_REF` (default `main`), runs the tests in `rutx11/`, and fails the build if
 any test fails.
 
 Set both passwords as **service** variables of `isaacbot-amr-network`. Don't set them fleet-wide,

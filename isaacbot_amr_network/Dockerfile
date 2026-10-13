@@ -14,7 +14,7 @@
 
 # isaacbot-amr-network: web page to switch the RUTX11 Wi-Fi uplink in place and keep the
 # firewall/NAT consistent, so the wired LAN and the isaacbot AP keep internet. The application
-# lives in https://github.com/RaduPotlog/rover_networking under rutx11/ (docs in its README);
+# lives in https://github.com/isaacbotsrl/isaacbot_amr_networking under rutx11/ (docs in its README);
 # this directory only holds the container glue. No ROS in here.
 
 ##################################### Fetch + test ###########################################
@@ -25,11 +25,11 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Tracks the tip of `master` by default, so every `balena push --nocache` picks up the latest
+# Tracks the tip of `main` by default, so every `balena push --nocache` picks up the latest
 # commit; pin a SHA with `--build-arg ISAACBOT_AMR_NETWORKING_REF=<sha>` for a reproducible build.
 # Same convention as ISAACBOT_AMR_DRIVE_INTERFACE_REF / ISAACBOT_AMR_ROS_REF in the other services.
-ARG ISAACBOT_AMR_NETWORKING_REF=master
-RUN git clone https://github.com/RaduPotlog/rover_networking.git /src \
+ARG ISAACBOT_AMR_NETWORKING_REF=main
+RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_networking.git /src \
     && git -C /src checkout ${ISAACBOT_AMR_NETWORKING_REF}
 
 # The app is the rutx11/ folder of the repo.
