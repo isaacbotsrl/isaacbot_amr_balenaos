@@ -56,7 +56,7 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_COMPOSE = HERE.parent / 'docker-compose.yml'
 DEFAULT_FILE = HERE / 'balena_env.yaml'
 DEFAULT_RENAMES = HERE / 'env_renames.yaml'
-DEFAULT_FLEET = 'g_potlog_radu/rovera1'
+DEFAULT_FLEET = 'g_potlog_radu/ardennes'
 
 ALL = '*'
 LEVELS = ('device', 'fleet')

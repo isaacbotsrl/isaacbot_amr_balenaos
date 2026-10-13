@@ -11,7 +11,7 @@ Docker files to build the ARM64 balena application release for the Ardennes.
 The application uses ROS 2 Lyrical on Ubuntu 26.04; the balenaOS host image
 is managed separately.
 
-Four services are deployed to the balenaCloud fleet `g_potlog_radu/rovera1`.
+Four services are deployed to the balenaCloud fleet `g_potlog_radu/ardennes`.
 Each has its own folder holding its Dockerfile and any scripts, which is the
 service's build context in `docker-compose.yml`:
 
@@ -132,7 +132,7 @@ The fleet must use an ARM64 device type. This command builds and deploys
 all services to the fleet; local validation above does not deploy them.
 
 ```bash
-balena push g_potlog_radu/rovera1 --nocache
+balena push g_potlog_radu/ardennes --nocache
 ```
 
 `--nocache` matters: every service fetches its application source with
@@ -145,7 +145,7 @@ code.
 Select specific application commits instead of branch tips with:
 
 ```bash
-balena push g_potlog_radu/rovera1 \
+balena push g_potlog_radu/ardennes \
   --build-arg ISAACBOT_AMR_ROS_REF=<sha> \
   --build-arg ISAACBOT_AMR_ORCHESTRATOR_REF=<sha> \
   --build-arg ISAACBOT_AMR_SENSORS_REF=<sha> \

@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import balena_env as be  # noqa: E402
 
 UUID = '765bd2999c7aece20c35c2fad2275a8c'
-FLEET = 'g_potlog_radu/rovera1'
+FLEET = 'g_potlog_radu/ardennes'
 
 COMPOSE = {
     'services': {
@@ -62,7 +62,7 @@ class FakeRunner:
 
     def __init__(self, rows=(), devices=None, fail=False):
         self.rows = list(rows)
-        self.devices = devices or [{'uuid': UUID, 'device_name': 'rovera1-001'}]
+        self.devices = devices or [{'uuid': UUID, 'device_name': 'ardennes-001'}]
         self.fail = fail
         self.calls = []
 
@@ -265,9 +265,9 @@ def test_cli_error_does_not_leak_the_value():
 
 def test_resolve_device_by_name_prefix_or_only_device():
     cli = be.BalenaCli(FakeRunner())
-    assert be.resolve_device(cli, FLEET, 'rovera1-001')[0] == UUID
+    assert be.resolve_device(cli, FLEET, 'ardennes-001')[0] == UUID
     assert be.resolve_device(cli, FLEET, '765bd29')[0] == UUID
-    assert be.resolve_device(cli, FLEET, None)[1] == 'rovera1-001'
+    assert be.resolve_device(cli, FLEET, None)[1] == 'ardennes-001'
     with pytest.raises(be.BalenaError):
         be.resolve_device(cli, FLEET, 'nope')
 
@@ -307,7 +307,7 @@ def test_dump_then_diff_is_clean(tmp_path, capsys):
             row('ISAACBOT_AMR_SENSORS_CAMERA_FPS', '6'), row('START_SSHD', '1', device='*')]
     cli = be.BalenaCli(FakeRunner(rows=rows))
     base = ['--file', str(env_file), '--compose', str(compose_file(tmp_path)),
-            '--device', 'rovera1-001']
+            '--device', 'ardennes-001']
     assert be.main([*base, 'dump'], cli) == 0
     capsys.readouterr()
     assert be.main([*base, 'diff'], cli) == 0
