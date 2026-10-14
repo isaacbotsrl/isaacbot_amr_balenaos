@@ -138,6 +138,13 @@ RUN apt-get update && apt-get upgrade -y \
     && apt-get install -y usbutils plocate \
     && rm -rf /var/lib/apt/lists/*
 RUN add-apt-repository universe
+# Phidget22 SDK for the DCC1020 motor controllers and the MOT0110 IMU. It comes from the Phidgets
+# apt repo, not from rosdep: ros-lyrical-libphidget22 bundles 1.19, which predates the DCC1020 and
+# has no PhidgetMotorVelocityController API. isaacbot_amr_hardware_interface links it through
+# pkg-config and requires >= 1.26. Installed before rosdep, because there is no rosdep key for it.
+RUN curl -fsSL https://www.phidgets.com/downloads/setup_linux | bash - \
+    && apt-get update && apt-get install -y libphidget22 libphidget22-dev \
+    && rm -rf /var/lib/apt/lists/*
 RUN rosdep init
 ENV ISAACBOT_AMR_ROS_BUILD_TYPE=hardware
 RUN rosdep update --rosdistro "${ROS_DISTRO}"
