@@ -237,6 +237,18 @@ shell (23–26) widens the surface, so it is worth stating.
 After an image rebuild the host keys change, so `ssh` warns "host key changed" once per port;
 clear the old entry with `ssh-keygen -R '[<isaacbot-lan-ip>]:<port>'` (plain `<isaacbot-lan-ip>` for 22).
 
+To log in without a password, install your machine's key on every container once:
+
+```bash
+tools/scripts/authorize_ssh.sh <isaacbot-lan-ip>          # default 192.168.1.201; ports 22-26
+tools/scripts/authorize_ssh.sh <isaacbot-lan-ip> 24 26    # only some containers
+```
+
+It creates `~/.ssh/id_ed25519` if needed, logs in with the image password and skips containers
+that already accept the key. A new release recreates the containers, which forgets the key and
+changes the host keys: run it again, and it shows the new fingerprints before replacing the old
+ones.
+
 ### Claude Code and ros-mcp on every shell
 
 Every image carries the same Claude tooling: the `@anthropic-ai/claude-code` CLI plus `ros-mcp`
