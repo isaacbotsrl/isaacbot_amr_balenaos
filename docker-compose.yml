@@ -1,4 +1,4 @@
-# Copyright 2026 Mechatronics Academy
+# Copyright 2026 IsaacBot
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -302,7 +302,7 @@ services:
       ISAACBOT_AMR_VDA5050_BROKER_USER:
       ISAACBOT_AMR_VDA5050_BROKER_PASSWORD:
       ISAACBOT_AMR_VDA5050_BROKER_TLS: 'auto'
-      ISAACBOT_AMR_VDA5050_MANUFACTURER: 'MechatronicsAcademy'
+      ISAACBOT_AMR_VDA5050_MANUFACTURER: 'IsaacBot'
       ISAACBOT_AMR_VDA5050_SERIAL_NUMBER: 'ardennes'
       ISAACBOT_AMR_VDA5050_MAP_FRAME:
     healthcheck:

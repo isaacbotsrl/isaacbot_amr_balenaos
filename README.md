@@ -512,7 +512,7 @@ See [Drive interface variables](#drive-interface-variables).
 | `ISAACBOT_AMR_VDA5050_BROKER_HOST` / `_PORT` | `127.0.0.1` / `1883` | The broker the connector uses. |
 | `ISAACBOT_AMR_VDA5050_BROKER_USER` / `_PASSWORD` | unset | Broker login. A user also switches the connector to TLS (CA bundle from `VDA5050_CONNECTOR_TLS_CA_CERT`, default the system bundle). |
 | `ISAACBOT_AMR_VDA5050_BROKER_TLS` | `auto` | `auto`: TLS when a user is set. `false`: user/password without TLS, for a broker reached through WireGuard. `true`: always TLS. |
-| `ISAACBOT_AMR_VDA5050_MANUFACTURER` / `_SERIAL_NUMBER` | `MechatronicsAcademy` / `ardennes` | VDA 5050 identity; topics are `uagv/v2/<manufacturer>/<serial>/…`. |
+| `ISAACBOT_AMR_VDA5050_MANUFACTURER` / `_SERIAL_NUMBER` | `IsaacBot` / `ardennes` | VDA 5050 identity; topics are `uagv/v2/<manufacturer>/<serial>/…`. |
 | `ISAACBOT_AMR_VDA5050_MAP_FRAME` | unset | Nav 2 frame the order coordinates are in (prefixed with the namespace). Unset follows the orchestrator's localization source like its `start.sh` does: `odom` for odom, `map` for gps/slam/amcl/indoor. |
 
 See [VDA 5050](#vda-5050) for what the interface supports.

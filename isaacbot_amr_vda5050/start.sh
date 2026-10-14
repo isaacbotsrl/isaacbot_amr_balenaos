@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright 2026 Mechatronics Academy
+# Copyright 2026 IsaacBot
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -275,7 +275,7 @@ fi
 LAUNCH_ARGS=(
   broker_host:="${BROKER_HOST}"
   broker_port:="${BROKER_PORT}"
-  manufacturer:="${ISAACBOT_AMR_VDA5050_MANUFACTURER:-MechatronicsAcademy}"
+  manufacturer:="${ISAACBOT_AMR_VDA5050_MANUFACTURER:-IsaacBot}"
   serial_number:="${ISAACBOT_AMR_VDA5050_SERIAL_NUMBER:-ardennes}"
   map_frame:="${MAP_FRAME}"
 )
