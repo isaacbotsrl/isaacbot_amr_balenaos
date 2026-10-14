@@ -83,5 +83,5 @@ variables:
   - {name: ISAACBOT_AMR_VDA5050_BROKER_PASSWORD, value: null, default: null, level: device, service: '*', secret: true}
   - {name: ISAACBOT_AMR_VDA5050_BROKER_TLS, value: 'false', default: auto, level: device, service: '*'}
   - {name: ISAACBOT_AMR_VDA5050_MANUFACTURER, value: IsaacBot, default: IsaacBot, level: device, service: '*'}
-  - {name: ISAACBOT_AMR_VDA5050_SERIAL_NUMBER, value: ardennes, default: ardennes, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_VDA5050_SERIAL_NUMBER, value: ardennis-3420987-k, default: ardennes, level: device, service: '*'}
   - {name: ISAACBOT_AMR_VDA5050_MAP_FRAME, value: null, default: null, level: device, service: '*'}
