@@ -11,7 +11,7 @@ Docker files to build the ARM64 balena application release for the Ardennes.
 The application uses ROS 2 Lyrical on Ubuntu 26.04; the balenaOS host image
 is managed separately.
 
-Four services are deployed to the balenaCloud fleet `g_potlog_radu/ardennes`.
+Four services are deployed to the balenaCloud fleet `<fleet>`.
 Each has its own folder holding its Dockerfile and any scripts, which is the
 service's build context in `docker-compose.yml`:
 
@@ -132,7 +132,7 @@ The fleet must use an ARM64 device type. This command builds and deploys
 all services to the fleet; local validation above does not deploy them.
 
 ```bash
-balena push g_potlog_radu/ardennes --nocache
+balena push <fleet> --nocache
 ```
 
 `--nocache` matters: every service fetches its application source with
@@ -145,7 +145,7 @@ code.
 Select specific application commits instead of branch tips with:
 
 ```bash
-balena push g_potlog_radu/ardennes \
+balena push <fleet> \
   --build-arg ISAACBOT_AMR_ROS_REF=<sha> \
   --build-arg ISAACBOT_AMR_ORCHESTRATOR_REF=<sha> \
   --build-arg ISAACBOT_AMR_SENSORS_REF=<sha> \
@@ -835,21 +835,21 @@ VPN. Nothing VPN-related runs on the device. The RUTX11 is a WireGuard peer and 
 the isaacbot LAN, so the controller is reached at its usual LAN address, `192.168.1.201`.
 
 ```
-laptop 10.8.0.4 ──wg──> server 10.8.0.1 ──wg──> RUTX11 10.8.0.5 ──firewall──> controller 192.168.1.201
+laptop <laptop-vpn-ip> ──wg──> server <server-vpn-ip> ──wg──> RUTX11 <rutx11-vpn-ip> ──firewall──> controller 192.168.1.201
 ```
 
 - **Server** (`/etc/wireguard/wg0.conf`): the RUTX11 peer has
-  `AllowedIPs = 10.8.0.5/32, 192.168.1.0/24`, and `PostUp` allows forwarding `wg0 → wg0`.
+  `AllowedIPs = <rutx11-vpn-ip>/32, 192.168.1.0/24`, and `PostUp` allows forwarding `wg0 → wg0`.
 - **RUTX11**: interface `wg0`, peer `roverser`. Its settings:
-  - Split tunnel: `allowed_ips=10.8.0.0/24`, so the isaacbot's internet traffic doesn't go through
+  - Split tunnel: `allowed_ips=<vpn-subnet>`, so the isaacbot's internet traffic doesn't go through
     the server.
   - `route_allowed_ips=1`, which gives the controller's replies a way back. The controller's
     default route is the RUTX11.
   - `mtu=1380`, `persistent_keepalive=25`.
-- **Laptop peer**: `AllowedIPs = 10.8.0.0/24, 192.168.1.201/32`, `MTU = 1380`. Turn the tunnel
+- **Laptop peer**: `AllowedIPs = <vpn-subnet>, 192.168.1.201/32`, `MTU = 1380`. Turn the tunnel
   off while on the isaacbot LAN or AP, or isaacbot traffic hairpins through the server.
 
-The RUTX11 firewall zone `wireguard` lets only the laptop (`10.8.0.4`) through, and only to
+The RUTX11 firewall zone `wireguard` lets only the laptop (`<laptop-vpn-ip>`) through, and only to
 these ports on `192.168.1.201`:
 
 | Port | Service |
@@ -861,7 +861,7 @@ these ports on `192.168.1.201`:
 | 1883, 9001 | MQTT, MQTT over WebSockets |
 | ICMP echo | ping |
 
-The router itself answers ping, SSH (22) and HTTPS (443) on `10.8.0.5`. A final rule,
+The router itself answers ping, SSH (22) and HTTPS (443) on `<rutx11-vpn-ip>`. A final rule,
 `VPN-reject-everything-else`, rejects the rest, Zenoh 7447 and rosbridge 9090 included. It is
 required: RutOS's default forward policy is ACCEPT, and the zone's `forward=REJECT` only covers
 traffic leaving `wg0`. To let in another VPN peer or port, copy a `VPN-laptop-ctrl-*` rule and
