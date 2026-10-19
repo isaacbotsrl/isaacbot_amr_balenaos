@@ -315,7 +315,7 @@ in. It is built for one isaacbot and indoor navigation.
   **Set pose** (AMCL `initialpose`) and **Go to** (`isaacbot_amr_mission_manager` `set_mission`), plus
   **Stop**. These need `ISAACBOT_AMR_ORCH_NAVIGATION=true` and `ISAACBOT_AMR_ORCH_MISSION_MANAGER=true`,
   and Go to needs the Automatic driving mode.
-- **Places and Facility** (indoor mode only, `ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE=indoor`):
+- **Places and Facility** (`isaacbot_amr_indoor_nav_manager`, with `ISAACBOT_AMR_ORCH_NAVIGATION=true`):
   1. Record a map with **Start mapping**.
   2. **Save map as…** a name.
   3. **Load** it (AMCL).
@@ -424,8 +424,7 @@ Booleans accept `true`/`1`/`yes`/`on` in any case; anything else means false.
 | Variable | Default | Read by | Effect |
 |----------|---------|---------|--------|
 | `ISAACBOT_AMR_SYSTEM_NAMESPACE` | `isaacbot` | all | ROS namespace (see [ROS namespace](#ros-namespace)). Keep it equal across services. |
-| `ISAACBOT_AMR_SYSTEM_USE_GPS` | `false` | sensors, platform, orchestrator | One switch for GPS. `true`: `isaacbot-amr-sensors` starts the RUTX11 GNSS driver (`gps/fix`, `GPS fix` diagnostics) and the platform fuses it (`isaacbot_amr_gps_heading` alignment, `navsat_transform`, global EKF; it publishes `map → odom` only with `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=true`). `false`: no GPS driver, EKF on wheel odometry + IMU only. In the orchestrator it selects Nav 2's `localization_source` (`gps` vs `odom`). |
-| `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF` | `false` | platform, orchestrator | Only matters with `ISAACBOT_AMR_SYSTEM_USE_GPS=true`. `true`: the global EKF broadcasts `map → odom`. `false`: it keeps fusing GPS and publishing `odometry/global` but leaves `map → odom` to slam_toolbox or AMCL. The orchestrator warns when this is `false` with `localization_source=gps`, since then nothing publishes `map → odom`. Set it as an all-services variable. |
+| `ISAACBOT_AMR_SYSTEM_USE_GPS` | `false` | sensors, platform, orchestrator | One switch for GPS. `true`: `isaacbot-amr-sensors` starts the RUTX11 GNSS driver (`gps/fix`, `GPS fix` diagnostics) and the platform fuses it (`isaacbot_amr_gps_heading` alignment, `navsat_transform`, global EKF publishing `odometry/global`; it never publishes `map → odom`). `false`: no GPS driver, EKF on wheel odometry + IMU only. It does not change Nav 2's localization, which is always `isaacbot_amr_indoor_nav_manager`'s. |
 | `ISAACBOT_AMR_SYSTEM_USE_LIDAR` | `false` | sensors, orchestrator, platform (Lidar diagnostics group) | Starts the RoboSense RS16 driver in `isaacbot-amr-sensors`. Leave `false` on isaacbots with no lidar fitted. The orchestrator logs a warning when it is false: both Nav 2 costmaps mark and clear from `<namespace>/scan`, so navigation would drive blind. |
 | `ISAACBOT_AMR_SYSTEM_USE_CAMERA` | `false` | sensors, orchestrator | Starts the RealSense D435i driver (`isaacbot_amr_sensors`' `isaacbot_amr_realsense`) and the camera perception nodes in `isaacbot-amr-sensors` (see [isaacbot_amr_perception](../src/isaacbot_amr_perception/README.md)), and, with `ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD=true`, its depth cloud (`camera/depth/points`). It does not change Nav 2: the cloud joins the costmap only with `ISAACBOT_AMR_ORCH_NAV_USE_CAMERA`; the orchestrator reads this variable just to warn about that combination. Counts as a driver for `ISAACBOT_AMR_SENSORS_ENABLE`, so a camera-only payload does not idle. Needs USB access to the camera in the container. |
 | `ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE` | `false` | sensors, orchestrator | `true` starts follow-me: the `fmoc` person tracker in `isaacbot-amr-sensors` (needs `ISAACBOT_AMR_SYSTEM_USE_CAMERA=true` and the depth cloud, `ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD=true`; off by default) and the `follow_me` node in `isaacbot-amr-orchestrator`. Following drives through Nav 2's Following server, so it needs `ISAACBOT_AMR_ORCH_NAVIGATION=true` and `ISAACBOT_AMR_ORCH_MISSION_MANAGER=true` (AUTOMATIC needs the mission manager); the orchestrator warns when the mission manager or the camera is off. |
@@ -476,10 +475,9 @@ warning in `/tmp/isaacbot_amr_bringup.log`.
 | `ISAACBOT_AMR_ORCH_MISSION_MANAGER` | `false` | vda5050 | `true` also starts `isaacbot_amr_mission_manager` on top of Nav 2. Only consulted when the orchestrator stack starts at all. The Automatic driving mode is refused without it. |
 | `ISAACBOT_AMR_ORCH_DRIVE_MODE` | `true` | | Starts `isaacbot_amr_drive_mode` (driving modes + the Assisted lidar guard), even when `ISAACBOT_AMR_ORCH_NAVIGATION=false`. `false` leaves the drive UI's joystick connected to nothing. Requires `ISAACBOT_AMR_PLATFORM_ENABLE=true`. |
 | `ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE` | `assisted` | | Driving mode at boot: `assisted` or `manual`. Never `automatic`. |
-| `ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE` | *(unset)* | sensors, vda5050 | Optional. `odom`, `gps`, `slam`, `amcl` or `indoor`, overriding the `ISAACBOT_AMR_SYSTEM_USE_GPS` mapping. `slam` (slam_toolbox), `amcl` (nav2_amcl) and `indoor` all require `ISAACBOT_AMR_SYSTEM_USE_GPS=false` or `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=false` — exactly one process may publish `map → odom`. `amcl` localizes on a fixed `ISAACBOT_AMR_ORCH_NAV_MAP` and needs `ISAACBOT_AMR_SYSTEM_USE_LIDAR=true`. **`indoor`** is the mode for the [drive interface](#drive-interface): `isaacbot_amr_indoor_nav_manager` runs slam_toolbox while you record a map and map_server + AMCL on a saved one, switching at runtime; maps, places and the last pose live in the `isaacbot-maps` volume (`/maps/<name>/`), and `ISAACBOT_AMR_ORCH_NAV_MAP` / `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_*` are ignored. An unrecognized value is ignored with a warning. |
-| `ISAACBOT_AMR_ORCH_NAV_MAP` | *(unset)* | | Optional path to a map yaml inside the container; defaults to `isaacbot_amr_navigation`'s `empty_world.yaml`. **Required with `ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE=amcl`** — AMCL cannot localize against the empty default, so build a map with `=slam` first and point this at `/maps/map.yaml`. |
 | `ISAACBOT_AMR_ORCH_NAV_USE_CAMERA` | `false` | | Adds the depth cloud (`camera/depth/points`) as a second source of the **local** Nav 2 costmap. Needs `ISAACBOT_AMR_SYSTEM_USE_CAMERA=true` (the orchestrator warns otherwise) and `ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD=true` (`isaacbot-amr-sensors`). Leave it off until the camera mount (`ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_*`) is measured: with a wrong mount the camera marks obstacles in the wrong place. `false` keeps the lidar scan as the only source. |
-| `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X` / `_Y` / `_YAW` | `0.0` | | Pose AMCL is seeded with at startup, in the map frame. The default is correct only when the map origin is where the isaacbot parks, i.e. the slam run started there. Find it with `ros2 run tf2_ros tf2_echo isaacbot/map isaacbot/base_link`. |
+
+Localization has no variable: Nav 2 always plans in `<namespace>/map`, and `isaacbot_amr_indoor_nav_manager` picks AMCL on the selected map, slam_toolbox when no map is selected, or odometry only (it holds `map → odom`) while neither the lidar nor the camera works. Maps, places and the last pose live in the `isaacbot-maps` volume (`/maps/<name>/`). `ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE`, `ISAACBOT_AMR_ORCH_NAV_MAP`, `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_*` and `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF` were removed on 2026-10-19; the containers ignore them with a warning.
 
 ### Sensors (`ISAACBOT_AMR_SENSORS_*`)
 
@@ -513,7 +511,7 @@ See [Drive interface variables](#drive-interface-variables).
 | `ISAACBOT_AMR_VDA5050_BROKER_USER` / `_PASSWORD` | unset | Broker login. A user also switches the connector to TLS (CA bundle from `VDA5050_CONNECTOR_TLS_CA_CERT`, default the system bundle). |
 | `ISAACBOT_AMR_VDA5050_BROKER_TLS` | `auto` | `auto`: TLS when a user is set. `false`: user/password without TLS, for a broker reached through WireGuard. `true`: always TLS. |
 | `ISAACBOT_AMR_VDA5050_MANUFACTURER` / `_SERIAL_NUMBER` | `IsaacBot` / `ardennes` | VDA 5050 identity; topics are `uagv/v2/<manufacturer>/<serial>/…`. |
-| `ISAACBOT_AMR_VDA5050_MAP_FRAME` | unset | Nav 2 frame the order coordinates are in (prefixed with the namespace). Unset follows the orchestrator's localization source like its `start.sh` does: `odom` for odom, `map` for gps/slam/amcl/indoor. |
+| `ISAACBOT_AMR_VDA5050_MAP_FRAME` | unset | Nav 2 frame the order coordinates are in (prefixed with the namespace). Unset is `map`, Nav 2's global frame. |
 
 See [VDA 5050](#vda-5050) for what the interface supports.
 
@@ -538,7 +536,7 @@ Note that `ISAACBOT_AMR_PLATFORM_ENABLE` is read by two services. Scoping it to 
 alone stops the bringup but leaves the orchestrator believing it is still running — set it as
 an all-services variable, or set `ISAACBOT_AMR_ORCH_NAVIGATION=false` alongside it. Every
 `ISAACBOT_AMR_SYSTEM_*` variable is read by several services (`ISAACBOT_AMR_SYSTEM_USE_GPS`: sensors driver,
-platform fusion, orchestrator `localization_source`), so set each as an all-services variable.
+platform fusion, orchestrator), so set each as an all-services variable.
 
 With the defaults only `isaacbot-amr-platform` runs its stack; the orchestrator and the sensor
 payload idle until `ISAACBOT_AMR_ORCH_NAVIGATION` / `ISAACBOT_AMR_SENSORS_ENABLE` are set to `true`.
@@ -582,6 +580,10 @@ once it is renamed on balenaCloud. `tools/env_renames.yaml` is the map (it also 
    settle it. `ISAACBOT_AMR_ZENOH_MODE` becomes the four `ISAACBOT_AMR_ZENOH_MODE_*`: an all-services value
    goes to each, a service-scoped one to that container's.
 
+Rows marked *(removed 2026-10-19)* are history only: localization became automatic, and the
+containers ignore those new names with a warning (`tools/balena_env.py` lists them as extra
+variables to delete).
+
 | Old name | New name |
 |----------|----------|
 | `ISAACBOT_AMR_NAMESPACE` | `ISAACBOT_AMR_SYSTEM_NAMESPACE` |
@@ -621,20 +623,20 @@ once it is renamed on balenaCloud. `tools/env_renames.yaml` is the map (it also 
 | `ISAACBOT_AMR_CAMERA_ORIENTATION_Y` | `ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_YAW` |
 | `ISAACBOT_AMR_ZENOH_MODE` | `ISAACBOT_AMR_ZENOH_MODE_PLATFORM`, `ISAACBOT_AMR_ZENOH_MODE_ORCH`, `ISAACBOT_AMR_ZENOH_MODE_SENSORS`, `ISAACBOT_AMR_ZENOH_MODE_VDA5050` |
 | `ISAACBOT_AMR_START_ROS_PLATFORM` | `ISAACBOT_AMR_PLATFORM_ENABLE` |
-| `ISAACBOT_AMR_GPS_PUBLISH_MAP_TF` | `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF` (`ISAACBOT_AMR_PLATFORM_GPS_MAP_TF` until the follow-up rename) |
-| `ISAACBOT_AMR_PLATFORM_GPS_MAP_TF` | `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF` (follow-up: the orchestrator reads it too) |
+| `ISAACBOT_AMR_GPS_PUBLISH_MAP_TF` | `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF` (`ISAACBOT_AMR_PLATFORM_GPS_MAP_TF` until the follow-up rename) (removed 2026-10-19) |
+| `ISAACBOT_AMR_PLATFORM_GPS_MAP_TF` | `ISAACBOT_AMR_SYSTEM_GPS_MAP_TF` (follow-up: the orchestrator reads it too) (removed 2026-10-19) |
 | `ISAACBOT_AMR_FOXGLOVE_TOPIC_WHITELIST` | `ISAACBOT_AMR_PLATFORM_FOXGLOVE_TOPIC_WHITELIST` |
 | `ISAACBOT_AMR_FOXGLOVE_SERVICE_WHITELIST` | `ISAACBOT_AMR_PLATFORM_FOXGLOVE_SERVICE_WHITELIST` |
 | `ISAACBOT_AMR_START_NAVIGATION` | `ISAACBOT_AMR_ORCH_NAVIGATION` |
 | `ISAACBOT_AMR_START_MISSION_MANAGER` | `ISAACBOT_AMR_ORCH_MISSION_MANAGER` |
 | `ISAACBOT_AMR_START_DRIVE_MODE` | `ISAACBOT_AMR_ORCH_DRIVE_MODE` |
 | `ISAACBOT_AMR_DRIVE_DEFAULT_MODE` | `ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE` |
-| `ISAACBOT_AMR_LOCALIZATION_SOURCE` | `ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE` |
-| `ISAACBOT_AMR_NAV_MAP` | `ISAACBOT_AMR_ORCH_NAV_MAP` |
+| `ISAACBOT_AMR_LOCALIZATION_SOURCE` | `ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE` (removed 2026-10-19) |
+| `ISAACBOT_AMR_NAV_MAP` | `ISAACBOT_AMR_ORCH_NAV_MAP` (removed 2026-10-19) |
 | `ISAACBOT_AMR_NAV_USE_CAMERA` | `ISAACBOT_AMR_ORCH_NAV_USE_CAMERA` |
-| `ISAACBOT_AMR_AMCL_INITIAL_POSE_X` | `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X` |
-| `ISAACBOT_AMR_AMCL_INITIAL_POSE_Y` | `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_Y` |
-| `ISAACBOT_AMR_AMCL_INITIAL_POSE_YAW` | `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_YAW` |
+| `ISAACBOT_AMR_AMCL_INITIAL_POSE_X` | `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X` (removed 2026-10-19) |
+| `ISAACBOT_AMR_AMCL_INITIAL_POSE_Y` | `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_Y` (removed 2026-10-19) |
+| `ISAACBOT_AMR_AMCL_INITIAL_POSE_YAW` | `ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_YAW` (removed 2026-10-19) |
 | `ISAACBOT_AMR_START_SENSORS` | `ISAACBOT_AMR_SENSORS_ENABLE` |
 | `ISAACBOT_AMR_CAMERA_DEPTH_CLOUD` | `ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD` |
 | `ISAACBOT_AMR_CAMERA_DEPTH_PROFILE` | `ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_PROFILE` |
@@ -693,8 +695,7 @@ most useful. Changing any of the variables restarts the container, which re-eval
 
 To run the stack on a companion controller, leave `ISAACBOT_AMR_ORCH_NAVIGATION=false` on the isaacbot,
 then build and run `isaacbot_amr_autonomy` on the companion computer and join the isaacbot's Zenoh
-router over the isaacbot LAN (see [ROS 2 over the isaacbot LAN](#ros-2-over-the-isaacbot-lan-zenoh)). Keep `ISAACBOT_AMR_SYSTEM_NAMESPACE` and the
-chosen `localization_source` identical on both sides.
+router over the isaacbot LAN (see [ROS 2 over the isaacbot LAN](#ros-2-over-the-isaacbot-lan-zenoh)). Keep `ISAACBOT_AMR_SYSTEM_NAMESPACE` identical on both sides.
 
 The container runs no Zenoh router of its own: host networking puts it in the same network
 namespace as `isaacbot-amr-zenoh-router`, so `rmw_zenoh_cpp` connects to `tcp/127.0.0.1:7447`.

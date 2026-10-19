@@ -229,8 +229,6 @@ case "${ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE:-assisted}" in
     ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE=assisted
     ;;
 esac
-ISAACBOT_AMR_SYSTEM_USE_GPS=$(norm_bool "${ISAACBOT_AMR_SYSTEM_USE_GPS:-}" false)
-ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=$(norm_bool "${ISAACBOT_AMR_SYSTEM_GPS_MAP_TF:-}" false)
 ISAACBOT_AMR_SYSTEM_USE_LIDAR=$(norm_bool "${ISAACBOT_AMR_SYSTEM_USE_LIDAR:-}" false)
 # Adds the RealSense depth cloud to the local costmap (bringup.launch.py use_camera).
 ISAACBOT_AMR_ORCH_NAV_USE_CAMERA=$(norm_bool "${ISAACBOT_AMR_ORCH_NAV_USE_CAMERA:-}" false)
@@ -343,43 +341,19 @@ if [ "$START_ORCHESTRATOR" != true ]; then
   exit "$EXIT_CODE"
 fi
 
-# Nav 2's global frame owner. ISAACBOT_AMR_SYSTEM_USE_GPS decides it by default - 'gps' means
-# isaacbot_amr_ekf_global_node (isaacbot-amr-platform) publishes map -> odom (needs
-# ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=true), 'odom' means nobody does and navigation is odometry-relative.
-# ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE overrides that, and is the only way to reach 'slam'
-# (slam_toolbox), 'amcl' (nav2_amcl on ISAACBOT_AMR_ORCH_NAV_MAP) or 'indoor' (isaacbot_amr_indoor_nav_manager switches between
-# the two at runtime from the drive UI, maps in /maps) - all require ISAACBOT_AMR_SYSTEM_USE_GPS=false or
-# ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=false. Deliberately not auto-selected: flipping an existing
-# odom-mode isaacbot into amcl would hard-fail it, since amcl needs a map that odom never had.
-if [ "$ISAACBOT_AMR_SYSTEM_USE_GPS" = true ]; then
-  LOCALIZATION_SOURCE=gps
-else
-  LOCALIZATION_SOURCE=odom
-fi
-if [ -n "${ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:-}" ]; then
-  case "$ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE" in
-    odom|gps|slam|amcl|indoor)
-      LOCALIZATION_SOURCE="$ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE"
-      ;;
-    *)
-      echo "WARNING: ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE='${ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE}' is not one of odom|gps|slam|amcl|indoor; using '${LOCALIZATION_SOURCE}'"
-      ;;
-  esac
-fi
-# Exactly one process may publish map -> odom. With ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=false the GPS
-# global EKF still fuses but leaves map -> odom to slam_toolbox or AMCL.
-if { [ "$LOCALIZATION_SOURCE" = slam ] || [ "$LOCALIZATION_SOURCE" = amcl ] || [ "$LOCALIZATION_SOURCE" = indoor ]; } \
-   && [ "$ISAACBOT_AMR_SYSTEM_USE_GPS" = true ] && [ "$ISAACBOT_AMR_SYSTEM_GPS_MAP_TF" = true ]; then
-  echo "WARNING: localization_source=${LOCALIZATION_SOURCE} with ISAACBOT_AMR_SYSTEM_USE_GPS=true - ${LOCALIZATION_SOURCE} and isaacbot_amr_ekf_global_node would both publish map -> odom (set ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=false)"
-fi
-# AMCL matches the lidar scan against the static map; without a scan it never localizes and
-# never publishes map -> odom, so Nav 2 cannot resolve its global frame at all. This is more
-# severe than the generic "costmaps stay empty" warning further down.
-if { [ "$LOCALIZATION_SOURCE" = amcl ] || [ "$LOCALIZATION_SOURCE" = indoor ]; } && [ "$ISAACBOT_AMR_SYSTEM_USE_LIDAR" != true ]; then
-  echo "WARNING: localization_source=amcl with ISAACBOT_AMR_SYSTEM_USE_LIDAR=false - AMCL has no scan to match, will never localize, and nothing will publish map -> odom"
-fi
-if [ "$LOCALIZATION_SOURCE" = gps ] && [ "$ISAACBOT_AMR_SYSTEM_GPS_MAP_TF" != true ]; then
-  echo "WARNING: localization_source=gps with ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=false - nothing publishes map -> odom, so Nav 2 cannot resolve its global frame"
+# Localization is automatic and has no mode to pick: isaacbot_amr_indoor_nav_manager runs
+# AMCL on the selected map (or SLAM when none is selected) while the lidar or the camera works,
+# and holds map -> odom on odometry while neither does. The variables that used to choose a
+# mode are ignored.
+for removed in ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE ISAACBOT_AMR_ORCH_NAV_MAP \
+               ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_Y \
+               ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_YAW ISAACBOT_AMR_SYSTEM_GPS_MAP_TF; do
+  if [ -n "${!removed:-}" ]; then
+    echo "WARNING: ${removed} is ignored - localization is automatic (lidar/camera -> AMCL or SLAM, neither -> odometry); delete the variable"
+  fi
+done
+if [ "$ISAACBOT_AMR_SYSTEM_USE_LIDAR" != true ] && [ "$ISAACBOT_AMR_SYSTEM_USE_CAMERA" != true ]; then
+  echo "WARNING: ISAACBOT_AMR_SYSTEM_USE_LIDAR and ISAACBOT_AMR_SYSTEM_USE_CAMERA are both false - nothing can localize, so the isaacbot runs on odometry only and drifts"
 fi
 
 # Both Nav 2 costmaps mark and clear from <namespace>/scan, and the navigation trees stop
@@ -391,34 +365,20 @@ if [ "$ISAACBOT_AMR_ORCH_NAV_USE_CAMERA" = true ] && [ "$ISAACBOT_AMR_SYSTEM_USE
   echo "WARNING: ISAACBOT_AMR_ORCH_NAV_USE_CAMERA=true but ISAACBOT_AMR_SYSTEM_USE_CAMERA=false - the local costmap waits on camera/depth/points, which nothing publishes"
 fi
 
-ISAACBOT_AMR_ORCH_NAV_MAP=${ISAACBOT_AMR_ORCH_NAV_MAP:-/root/ros2_ws/ardennes/install/isaacbot_amr_navigation/share/isaacbot_amr_navigation/map/empty_world.yaml}
-
-# The default map is 50x50 m of free space. Every AMCL particle scores identically against it,
-# so the filter never converges and the isaacbot reports a pose it has no evidence for. This is
-# the single most likely amcl misconfiguration, hence its own check.
-case "$LOCALIZATION_SOURCE:$ISAACBOT_AMR_ORCH_NAV_MAP" in
-  amcl:*empty_world.yaml)
-    echo "WARNING: localization_source=amcl with the default empty_world.yaml - AMCL cannot localize against an empty map. Build one first with ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE=slam, then set ISAACBOT_AMR_ORCH_NAV_MAP=/maps/map.yaml"
-    ;;
-esac
-
 # **Nav 2 - Background**
-# localization_source (and namespace, when set) are passed explicitly even though both launch
-# files read the environment themselves: isaacbot_amr_mission_manager must be launched with the same
-# localization_source as isaacbot_amr_navigation, and passing both proves they agree.
+# namespace (when set) is passed explicitly even though both launch files read the
+# environment themselves, so isaacbot_amr_navigation and isaacbot_amr_mission_manager agree.
 set -m  # own process group, so stop_launch_groups can signal its nodes
 nohup ros2 launch isaacbot_amr_navigation bringup.launch.py \
   use_sim_time:="${ISAACBOT_AMR_SYSTEM_USE_SIM_TIME}" \
   "${NAMESPACE_ARG[@]}" \
-  localization_source:="${LOCALIZATION_SOURCE}" \
   use_camera:="${ISAACBOT_AMR_ORCH_NAV_USE_CAMERA}" \
-  map:="${ISAACBOT_AMR_ORCH_NAV_MAP}" \
   > >(rotating_log /tmp/isaacbot_amr_nav.log "$ISAACBOT_AMR_LOG_MAX_BYTES" "$ISAACBOT_AMR_LOG_BACKUP_COUNT") 2>&1 < /dev/null &
 NAV_PID=$!
 set +m
 LAUNCH_PGIDS+=("$NAV_PID")
 CHILD_PIDS+=("$NAV_PID")
-echo "Nav 2 bringup started in background (PID: $NAV_PID, localization_source=$LOCALIZATION_SOURCE, map=$ISAACBOT_AMR_ORCH_NAV_MAP, camera costmap=$ISAACBOT_AMR_ORCH_NAV_USE_CAMERA)"
+echo "Nav 2 bringup started in background (PID: $NAV_PID, automatic localization, camera costmap=$ISAACBOT_AMR_ORCH_NAV_USE_CAMERA)"
 
 # **Mission manager - Background**
 if [ "$ISAACBOT_AMR_ORCH_MISSION_MANAGER" = true ]; then
@@ -426,7 +386,6 @@ if [ "$ISAACBOT_AMR_ORCH_MISSION_MANAGER" = true ]; then
   nohup ros2 launch isaacbot_amr_mission_manager isaacbot_amr_mission_manager.launch.py \
     use_sim_time:="${ISAACBOT_AMR_SYSTEM_USE_SIM_TIME}" \
     "${NAMESPACE_ARG[@]}" \
-    localization_source:="${LOCALIZATION_SOURCE}" \
     > >(rotating_log /tmp/isaacbot_amr_mission_manager.log "$ISAACBOT_AMR_LOG_MAX_BYTES" "$ISAACBOT_AMR_LOG_BACKUP_COUNT") 2>&1 < /dev/null &
   MISSION_PID=$!
   set +m

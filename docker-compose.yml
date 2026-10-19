@@ -32,8 +32,7 @@ version: '2.4'
 #
 # --- System (all services) ---
 # ISAACBOT_AMR_SYSTEM_NAMESPACE         ROS namespace and TF prefix
-# ISAACBOT_AMR_SYSTEM_USE_GPS           sensors: GNSS driver; platform: GPS fusion + GPS diagnostics group;
-#                                orchestrator: localization_source gps vs odom
+# ISAACBOT_AMR_SYSTEM_USE_GPS           sensors: GNSS driver; platform: GPS fusion + GPS diagnostics group
 # ISAACBOT_AMR_SYSTEM_USE_LIDAR         sensors: RS16 driver; orchestrator: warns when off;
 #                                platform: Lidar diagnostics group
 # ISAACBOT_AMR_SYSTEM_USE_CAMERA        sensors: RealSense driver + camera perception; orchestrator: warns
@@ -42,8 +41,6 @@ version: '2.4'
 # ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE  follow-me: sensors run the fmoc person tracker (needs the camera),
 #                                the orchestrator the follow_me node (needs navigation, the
 #                                mission manager and AUTOMATIC drive mode)
-# ISAACBOT_AMR_SYSTEM_GPS_MAP_TF        platform: the global EKF publishes map -> odom (default false:
-#                                SLAM/AMCL own it); orchestrator: localization_source checks
 # ISAACBOT_AMR_SYSTEM_MOUNT_<IMU|GPS|LIDAR|CAMERA>_<X|Y|Z|ROLL|PITCH|YAW>
 #                                sensor mount pose relative to body_link (m, rad), read by
 #                                isaacbot_amr_description in the platform; unset = URDF default
@@ -69,16 +66,8 @@ version: '2.4'
 # ISAACBOT_AMR_ORCH_DRIVE_MODE          run isaacbot_amr_drive_mode (independent of Nav 2); off = the drive UI's
 #                                joystick reaches nothing
 # ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE  driving mode at boot: assisted (lidar slow/stop) | manual
-# ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE odom | gps | slam | amcl | indoor, overrides ISAACBOT_AMR_SYSTEM_USE_GPS;
-#                                indoor = drive-UI mapping + maps in /maps. Also read by the
-#                                sensors (GNSS faults only warn for indoor/slam/amcl) and vda5050
-#                                (order frame)
-# ISAACBOT_AMR_ORCH_NAV_MAP             map yaml (full path), default isaacbot_amr_navigation's empty_world;
-#                                required for amcl - build one with slam first
 # ISAACBOT_AMR_ORCH_NAV_USE_CAMERA      add the camera depth cloud to the local costmap (needs the camera
 #                                and a measured camera mount)
-# ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_<X|Y|YAW>
-#                                AMCL's start pose in the map frame; unset = 0,0,0
 #
 # --- isaacbot-amr-sensors ---
 # ISAACBOT_AMR_SENSORS_ENABLE           run the sensor payload drivers at all
@@ -147,7 +136,6 @@ services:
       ISAACBOT_AMR_SYSTEM_USE_GPS: 'false'
       ISAACBOT_AMR_SYSTEM_USE_LIDAR: 'false'
       ISAACBOT_AMR_SYSTEM_USE_CAMERA: 'false'
-      ISAACBOT_AMR_SYSTEM_GPS_MAP_TF: 'false'
       ISAACBOT_AMR_SYSTEM_MOUNT_IMU_X:
       ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Y:
       ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Z:
@@ -187,8 +175,8 @@ services:
       - isaacbot-amr-zenoh-router
     restart: always
     network_mode: host
-    # Maps: map_autosaver writes /maps/map.{yaml,pgm} while localization_source=slam, and amcl
-    # reads one back through ISAACBOT_AMR_ORCH_NAV_MAP (see the isaacbot-maps volume).
+    # Maps: isaacbot_amr_indoor_nav_manager keeps saved maps, places and the last pose in
+    # /maps/<name>/ (see the isaacbot-maps volume).
     volumes:
       - isaacbot-maps:/maps
     environment:
@@ -197,19 +185,13 @@ services:
       ISAACBOT_AMR_SYSTEM_USE_LIDAR: 'false'
       ISAACBOT_AMR_SYSTEM_USE_CAMERA: 'false'
       ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE: 'false'
-      ISAACBOT_AMR_SYSTEM_GPS_MAP_TF: 'false'
       ISAACBOT_AMR_ZENOH_MODE_ORCH: 'client'
       ISAACBOT_AMR_PLATFORM_ENABLE: 'true'
       ISAACBOT_AMR_ORCH_NAVIGATION: 'false'
       ISAACBOT_AMR_ORCH_MISSION_MANAGER: 'false'
       ISAACBOT_AMR_ORCH_DRIVE_MODE: 'true'
       ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE: 'assisted'
-      ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:
-      ISAACBOT_AMR_ORCH_NAV_MAP:
       ISAACBOT_AMR_ORCH_NAV_USE_CAMERA: 'false'
-      ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X:
-      ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_Y:
-      ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_YAW:
 
   # Sensor payload: GNSS (isaacbot_amr_gps), RS16 lidar, RealSense camera (isaacbot_amr_sensors) and the
   # perception nodes next to them (isaacbot_amr_perception: AprilTags, YOLO, terrain, fmoc person
@@ -234,7 +216,6 @@ services:
       ISAACBOT_AMR_SYSTEM_USE_CAMERA: 'false'
       ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE: 'false'
       ISAACBOT_AMR_ZENOH_MODE_SENSORS: 'client'
-      ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:
       ISAACBOT_AMR_SENSORS_ENABLE: 'false'
       ISAACBOT_AMR_SENSORS_CAMERA_FPS: '15'
       ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_PROFILE: '424x240'
@@ -291,10 +272,8 @@ services:
     network_mode: host
     environment:
       ISAACBOT_AMR_SYSTEM_NAMESPACE: 'isaacbot'
-      ISAACBOT_AMR_SYSTEM_USE_GPS: 'false'
       ISAACBOT_AMR_ZENOH_MODE_VDA5050: 'client'
       ISAACBOT_AMR_ORCH_MISSION_MANAGER: 'false'
-      ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:
       ISAACBOT_AMR_VDA5050_ENABLE: 'false'
       ISAACBOT_AMR_VDA5050_LOCAL_BROKER: 'true'
       ISAACBOT_AMR_VDA5050_BROKER_HOST: '127.0.0.1'

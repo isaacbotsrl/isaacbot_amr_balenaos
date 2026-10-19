@@ -196,7 +196,6 @@ norm_bool() {
 
 ISAACBOT_AMR_VDA5050_ENABLE=$(norm_bool "${ISAACBOT_AMR_VDA5050_ENABLE:-}" false)
 ISAACBOT_AMR_VDA5050_LOCAL_BROKER=$(norm_bool "${ISAACBOT_AMR_VDA5050_LOCAL_BROKER:-}" true)
-ISAACBOT_AMR_SYSTEM_USE_GPS=$(norm_bool "${ISAACBOT_AMR_SYSTEM_USE_GPS:-}" false)
 
 # Idle rather than exit when disabled: `restart: always` would otherwise crash-loop this
 # service. Changing any balenaCloud variable restarts the container, which re-reads them.
@@ -211,23 +210,10 @@ fi
 BROKER_HOST=${ISAACBOT_AMR_VDA5050_BROKER_HOST:-127.0.0.1}
 BROKER_PORT=${ISAACBOT_AMR_VDA5050_BROKER_PORT:-1883}
 
-# Orders are sent as isaacbot_amr_mission_manager missions in Nav 2's global frame, which follows
-# isaacbot-amr-orchestrator's localization source (its start.sh): odom for 'odom', map for the rest.
-# ISAACBOT_AMR_VDA5050_MAP_FRAME overrides the derived value.
-if [ -n "${ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE:-}" ]; then
-  LOCALIZATION_SOURCE=$ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE
-elif [ "$ISAACBOT_AMR_SYSTEM_USE_GPS" = true ]; then
-  LOCALIZATION_SOURCE=gps
-else
-  LOCALIZATION_SOURCE=odom
-fi
-if [ -n "${ISAACBOT_AMR_VDA5050_MAP_FRAME:-}" ]; then
-  MAP_FRAME=$ISAACBOT_AMR_VDA5050_MAP_FRAME
-elif [ "$LOCALIZATION_SOURCE" = odom ]; then
-  MAP_FRAME=odom
-else
-  MAP_FRAME=map
-fi
+# Orders are sent as isaacbot_amr_mission_manager missions in Nav 2's global frame, which is
+# always map (isaacbot_amr_indoor_nav_manager owns or holds map -> odom).
+# ISAACBOT_AMR_VDA5050_MAP_FRAME overrides it.
+MAP_FRAME=${ISAACBOT_AMR_VDA5050_MAP_FRAME:-map}
 
 source "/opt/ros/${ROS_DISTRO}/setup.bash"
 source /root/ros2_ws/ardennes/install/setup.bash

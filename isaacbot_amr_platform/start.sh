@@ -37,15 +37,12 @@ case "${ISAACBOT_AMR_SYSTEM_USE_GPS:-false}" in
 esac
 export ISAACBOT_AMR_SYSTEM_USE_GPS
 
-# Whether the GPS global EKF (isaacbot_amr_ekf_global_node) broadcasts map -> odom; read by
-# isaacbot_amr_localization's publish_global_tf default. Unset or empty means false: SLAM or AMCL owns
-# map -> odom while GPS is still fused (odometry/global keeps publishing). Set it true to let the
-# global EKF publish map -> odom itself.
-case "${ISAACBOT_AMR_SYSTEM_GPS_MAP_TF:-false}" in
-  [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]|[Oo][Nn]) ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=true ;;
-  *) ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=false ;;
-esac
-export ISAACBOT_AMR_SYSTEM_GPS_MAP_TF
+# The GPS global EKF (isaacbot_amr_ekf_global_node) never broadcasts map -> odom any more:
+# isaacbot_amr_indoor_nav_manager in the orchestrator always owns it (SLAM, AMCL, or held on
+# odometry). GPS is still fused into odometry/global.
+if [ -n "${ISAACBOT_AMR_SYSTEM_GPS_MAP_TF:-}" ]; then
+  echo "WARNING: ISAACBOT_AMR_SYSTEM_GPS_MAP_TF is ignored - the global EKF never publishes map -> odom; delete the variable"
+fi
 
 # Process groups of the `ros2 launch` jobs (each launch's PID: they run as jobs, see set -m below).
 LAUNCH_PGIDS=()
@@ -270,7 +267,7 @@ if [ "$ISAACBOT_AMR_PLATFORM_ENABLE" = true ]; then
   set +m
   LAUNCH_PGIDS+=("$ISAACBOT_AMR_PID")
   CHILD_PIDS+=("$ISAACBOT_AMR_PID")
-  echo "Isaacbot bringup started in background (PID: $ISAACBOT_AMR_PID, ISAACBOT_AMR_SYSTEM_USE_GPS=$ISAACBOT_AMR_SYSTEM_USE_GPS, ISAACBOT_AMR_SYSTEM_GPS_MAP_TF=$ISAACBOT_AMR_SYSTEM_GPS_MAP_TF)"
+  echo "Isaacbot bringup started in background (PID: $ISAACBOT_AMR_PID, ISAACBOT_AMR_SYSTEM_USE_GPS=$ISAACBOT_AMR_SYSTEM_USE_GPS)"
 else
   echo "Isaacbot bringup disabled (ISAACBOT_AMR_PLATFORM_ENABLE=false); skipping"
 fi
