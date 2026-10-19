@@ -148,8 +148,8 @@ RUN mkdir -p /maps
 # up the latest commit; pin either with --build-arg. isaacbot_amr_ros is cloned only for
 # isaacbot_amr_utils, which isaacbot_amr_mission_manager and isaacbot_amr_navigation depend on - the hardware
 # packages are never built, `--packages-up-to isaacbot_amr_autonomy` stops short of them.
-ARG ISAACBOT_AMR_ROS_REF=main
-ARG ISAACBOT_AMR_ORCHESTRATOR_REF=main
+ARG ISAACBOT_AMR_ROS_REF=feat/automatic-localization
+ARG ISAACBOT_AMR_ORCHESTRATOR_REF=feat/automatic-localization
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
     && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_orchestrator.git src/isaacbot_amr_orchestrator \

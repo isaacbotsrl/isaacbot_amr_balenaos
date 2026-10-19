@@ -160,7 +160,7 @@ WORKDIR /root/ros2_ws/ardennes
 
 # Tracks main by default, so every `--nocache` build picks up the latest commit; pin with
 # --build-arg ISAACBOT_AMR_SENSORS_REF=<ref>.
-ARG ISAACBOT_AMR_SENSORS_REF=main
+ARG ISAACBOT_AMR_SENSORS_REF=feat/automatic-localization
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_sensors.git src/isaacbot_amr_sensors \
     && git -C src/isaacbot_amr_sensors checkout ${ISAACBOT_AMR_SENSORS_REF}
 
@@ -174,7 +174,7 @@ RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_perception.git src/isa
 # isaacbot_amr_ros is cloned only for isaacbot_amr_msgs (TrackedPerson); nothing else of it is built or
 # rosdep-resolved. Keep ISAACBOT_AMR_ROS_REF equal in isaacbot_amr_platform, isaacbot_amr_orchestrator,
 # isaacbot_amr_vda5050 and here.
-ARG ISAACBOT_AMR_ROS_REF=main
+ARG ISAACBOT_AMR_ROS_REF=feat/automatic-localization
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
     && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
 
