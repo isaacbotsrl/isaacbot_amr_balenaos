@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright 2026 Mechatronics Academy
+# Copyright 2026 IsaacBot
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -275,7 +275,7 @@ fi
 LAUNCH_ARGS=(
   broker_host:="${BROKER_HOST}"
   broker_port:="${BROKER_PORT}"
-  manufacturer:="${ISAACBOT_AMR_VDA5050_MANUFACTURER:-MechatronicsAcademy}"
+  manufacturer:="${ISAACBOT_AMR_VDA5050_MANUFACTURER:-IsaacBot}"
   serial_number:="${ISAACBOT_AMR_VDA5050_SERIAL_NUMBER:-ardennes}"
   map_frame:="${MAP_FRAME}"
 )
@@ -283,6 +283,9 @@ LAUNCH_ARGS=(
 if [ -n "${ISAACBOT_AMR_SYSTEM_NAMESPACE:-}" ]; then
   LAUNCH_ARGS+=(namespace:="${ISAACBOT_AMR_SYSTEM_NAMESPACE}")
 fi
+# Not traced from here: `[ -n "$..._PASSWORD" ]` and the launch line expand the password, which
+# would land in the balena logs.
+set +x
 if [ -n "${ISAACBOT_AMR_VDA5050_BROKER_USER:-}" ]; then
   LAUNCH_ARGS+=(broker_username:="${ISAACBOT_AMR_VDA5050_BROKER_USER}")
 fi
@@ -291,8 +294,6 @@ if [ -n "${ISAACBOT_AMR_VDA5050_BROKER_PASSWORD:-}" ]; then
 fi
 # auto = TLS when a user is set; false = user/password in clear (broker inside WireGuard).
 export VDA5050_CONNECTOR_TLS="${ISAACBOT_AMR_VDA5050_BROKER_TLS:-auto}"
-# Not traced: the password would land in the balena logs.
-set +x
 # As a job (set -m), so the launch and its nodes get their own process group (PGID = its PID)
 # that stop_launch_groups can signal as a whole, and SIGINT is not ignored in them.
 set -m
