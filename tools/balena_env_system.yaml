@@ -7,7 +7,6 @@ variables:
   - {name: ISAACBOT_AMR_SYSTEM_USE_GPS, value: 'true', default: 'false', level: device, service: '*'}
   - {name: ISAACBOT_AMR_SYSTEM_USE_LIDAR, value: 'true', default: 'false', level: device, service: '*'}
   - {name: ISAACBOT_AMR_SYSTEM_USE_CAMERA, value: 'true', default: 'false', level: device, service: '*'}
-  - {name: ISAACBOT_AMR_SYSTEM_GPS_MAP_TF, value: 'false', default: 'false', level: device, service: '*'}
   # --- Sensor mount poses (all services) ---
   - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_X, value: '-0.09', default: null, level: device, service: '*'}
   - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Y, value: '0.0', default: null, level: device, service: '*'}

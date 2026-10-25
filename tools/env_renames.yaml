@@ -8,6 +8,12 @@
 # variable). Exception: ISAACBOT_AMR_ZENOH_MODE_<CONTAINER>, one per container.
 #
 # A list value splits one old variable into several new ones that all take its value.
+#
+# Removed since (2026-10-19, localization became automatic - isaacbot_amr_indoor_nav_manager picks
+# AMCL, SLAM or odometry from the lidar/camera health): ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE,
+# ISAACBOT_AMR_ORCH_NAV_MAP, ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_<X|Y|YAW> and
+# ISAACBOT_AMR_SYSTEM_GPS_MAP_TF. Their renames stay below as history; the containers ignore them
+# with a warning, and `balena_env.py` lists them as extra variables to delete.
 
 renames:
   # --- System-wide ---

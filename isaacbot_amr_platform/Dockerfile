@@ -129,7 +129,7 @@ WORKDIR /root/ros2_ws/ardennes
 # build (see README) picks up the latest commit; pin to a specific SHA with
 # `--build-arg ISAACBOT_AMR_ROS_REF=<sha>` to pin the isaacbot source instead.
 # Imported dependencies and package versions remain independently versioned.
-ARG ISAACBOT_AMR_ROS_REF=main
+ARG ISAACBOT_AMR_ROS_REF=feature/dcc_1020
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
     && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
 RUN echo "export ISAACBOT_AMR_ROS_BUILD_TYPE=hardware" >> /root/.bashrc

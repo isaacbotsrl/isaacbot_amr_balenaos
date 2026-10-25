@@ -41,12 +41,7 @@ variables:
   - {name: ISAACBOT_AMR_ORCH_MISSION_MANAGER, value: 'true', default: 'false', level: device, service: '*'}
   - {name: ISAACBOT_AMR_ORCH_DRIVE_MODE, value: 'true', default: 'true', level: device, service: '*'}
   - {name: ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE, value: assisted, default: assisted, level: device, service: '*'}
-  - {name: ISAACBOT_AMR_ORCH_LOCALIZATION_SOURCE, value: indoor, default: null, level: device, service: '*'}
-  - {name: ISAACBOT_AMR_ORCH_NAV_MAP, value: null, default: null, level: device, service: '*'}
   - {name: ISAACBOT_AMR_ORCH_NAV_USE_CAMERA, value: 'false', default: 'false', level: device, service: '*'}
-  - {name: ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_X, value: '0.0', default: null, level: device, service: '*'}
-  - {name: ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_Y, value: '0.0', default: null, level: device, service: '*'}
-  - {name: ISAACBOT_AMR_ORCH_AMCL_INITIAL_POSE_YAW, value: '0.0', default: null, level: device, service: '*'}
   # --- Sensors ---
   - {name: ISAACBOT_AMR_SENSORS_ENABLE, value: 'true', default: 'false', level: device, service: isaacbot-amr-sensors}
   - {name: ISAACBOT_AMR_SENSORS_CAMERA_FPS, value: '15', default: '15', level: device, service: isaacbot-amr-sensors}
