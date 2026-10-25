@@ -12,7 +12,7 @@
 # Regenerate from docker-compose.yml with `balena_env.py init` (keeps your values).
 
 fleet: g_potlog_radu/ardennes
-device: null
+device: 765bd2999c7aece20c35c2fad2275a8c
 
 variables:
   # --- Network uplink page (isaacbot-amr-network) ---
@@ -27,15 +27,54 @@ variables:
   - {name: UPLINK_ZONE, value: null, default: wwan, level: device, service: isaacbot-amr-network}
   - {name: LAN_ZONE, value: null, default: lan, level: device, service: isaacbot-amr-network}
   - {name: CLIENT_NETS, value: null, default: lan WWAN, level: device, service: isaacbot-amr-network}
+  # --- System (all services) ---
+  - {name: ISAACBOT_AMR_SYSTEM_NAMESPACE, value: ardennes_001, default: isaacbot, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_USE_GPS, value: 'false', default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_USE_LIDAR, value: 'true', default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_USE_CAMERA, value: 'true', default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_FOLLOW_ME_ENABLE, value: 'true', default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_LAN_IP, value: null, default: 192.168.1.201, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_LOG_MAX_MB, value: null, default: '20', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_LOG_BACKUPS, value: null, default: '3', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_ROS_LOG_MAX_MB, value: null, default: '300', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_ROS_LOG_KEEP_DAYS, value: null, default: '7', level: device, service: '*'}
+  # --- Sensor mount poses (all services) ---
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_X, value: '-0.09', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Y, value: '0.0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_Z, value: '0.2', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_ROLL, value: '3.14159', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_PITCH, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_IMU_YAW, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_GPS_X, value: '0.2', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_GPS_Y, value: '-0.06', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_GPS_Z, value: '0.65', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_GPS_ROLL, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_GPS_PITCH, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_GPS_YAW, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_X, value: '0.22', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_Y, value: '-0.06', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_Z, value: '0.60', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_ROLL, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_PITCH, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_LIDAR_YAW, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_X, value: '0.29', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_Y, value: '0.0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_Z, value: '0.545', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_ROLL, value: '0', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_PITCH, value: '-0.033', default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SYSTEM_MOUNT_CAMERA_YAW, value: '0', default: null, level: device, service: '*'}
   # --- Zenoh session mode ---
-  - {name: ISAACBOT_AMR_ZENOH_MODE_PLATFORM, value: peer, default: peer, level: device, service: isaacbot-amr-platform}
+  - {name: ISAACBOT_AMR_ZENOH_MODE_PLATFORM, value: null, default: peer, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_ZENOH_MODE_PLATFORM, value: peer, default: null, level: device, service: isaacbot-amr-platform}
   - {name: ISAACBOT_AMR_ZENOH_MODE_ORCH, value: null, default: client, level: device, service: '*'}
-  - {name: ISAACBOT_AMR_ZENOH_MODE_SENSORS, value: client, default: client, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_ZENOH_MODE_SENSORS, value: null, default: client, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_ZENOH_MODE_SENSORS, value: client, default: null, level: device, service: isaacbot-amr-sensors}
   - {name: ISAACBOT_AMR_ZENOH_MODE_VDA5050, value: null, default: client, level: device, service: '*'}
   # --- Platform ---
-  - {name: ISAACBOT_AMR_PLATFORM_ENABLE, value: 'true', default: 'true', level: device, service: isaacbot-amr-platform}
-  - {name: ISAACBOT_AMR_PLATFORM_FOXGLOVE_TOPIC_WHITELIST, value: '', default: null, level: device, service: isaacbot-amr-platform}
-  - {name: ISAACBOT_AMR_PLATFORM_FOXGLOVE_SERVICE_WHITELIST, value: '', default: null, level: device, service: isaacbot-amr-platform}
+  - {name: ISAACBOT_AMR_PLATFORM_ENABLE, value: null, default: 'true', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_PLATFORM_ENABLE, value: 'true', default: null, level: device, service: isaacbot-amr-platform}
+  - {name: ISAACBOT_AMR_PLATFORM_FOXGLOVE_TOPIC_WHITELIST, value: null, default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_PLATFORM_FOXGLOVE_SERVICE_WHITELIST, value: null, default: null, level: device, service: '*'}
   # --- Orchestrator ---
   - {name: ISAACBOT_AMR_ORCH_NAVIGATION, value: 'true', default: 'false', level: device, service: '*'}
   - {name: ISAACBOT_AMR_ORCH_MISSION_MANAGER, value: 'true', default: 'false', level: device, service: '*'}
@@ -43,19 +82,30 @@ variables:
   - {name: ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE, value: assisted, default: assisted, level: device, service: '*'}
   - {name: ISAACBOT_AMR_ORCH_NAV_USE_CAMERA, value: 'false', default: 'false', level: device, service: '*'}
   # --- Sensors ---
-  - {name: ISAACBOT_AMR_SENSORS_ENABLE, value: 'true', default: 'false', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FPS, value: '15', default: '15', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_PROFILE, value: 424x240, default: 424x240, level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD, value: 'true', default: 'false', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS, value: 'false', default: 'false', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS_DECIMATE, value: '2.0', default: '2.0', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION, value: 'false', default: 'false', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MODEL, value: null, default: null, level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_GPU, value: 'false', default: 'false', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MAX_RATE, value: '3.0', default: '3.0', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_LABELS, value: null, default: person, level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_PERSON_DETECTION, value: null, default: 'off', level: device, service: isaacbot-amr-sensors}
-  - {name: ISAACBOT_AMR_SENSORS_TERRAIN, value: 'false', default: 'false', level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_ENABLE, value: null, default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_ENABLE, value: 'true', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FPS, value: null, default: '15', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FPS, value: '15', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_PROFILE, value: null, default: 424x240, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_PROFILE, value: 424x240, default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD, value: null, default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DEPTH_CLOUD, value: 'true', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS, value: null, default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS, value: 'false', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS_DECIMATE, value: null, default: '2.0', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_FIDUCIALS_DECIMATE, value: '2.0', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION, value: null, default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION, value: 'true', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MODEL, value: null, default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_GPU, value: null, default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_GPU, value: 'false', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MAX_RATE, value: null, default: '3.0', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_MAX_RATE, value: '2.0', default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_CAMERA_DETECTION_LABELS, value: null, default: person, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_PERSON_DETECTION, value: null, default: 'off', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_PERSON_DETECTION, value: required, default: null, level: device, service: isaacbot-amr-sensors}
+  - {name: ISAACBOT_AMR_SENSORS_TERRAIN, value: null, default: 'false', level: device, service: '*'}
+  - {name: ISAACBOT_AMR_SENSORS_TERRAIN, value: 'false', default: null, level: device, service: isaacbot-amr-sensors}
   # --- Drive interface ---
   - {name: ISAACBOT_AMR_UI_ENABLE, value: 'true', default: 'true', level: device, service: '*'}
   - {name: ISAACBOT_AMR_UI_PORT, value: '80', default: '5000', level: device, service: '*'}
@@ -74,7 +124,7 @@ variables:
   - {name: ISAACBOT_AMR_VDA5050_LOCAL_BROKER, value: 'false', default: 'true', level: device, service: '*'}
   - {name: ISAACBOT_AMR_VDA5050_BROKER_HOST, value: 10.8.0.1, default: 127.0.0.1, level: device, service: '*'}
   - {name: ISAACBOT_AMR_VDA5050_BROKER_PORT, value: '1883', default: '1883', level: device, service: '*'}
-  - {name: ISAACBOT_AMR_VDA5050_BROKER_USER, value: ardennes, default: null, level: device, service: '*'}
+  - {name: ISAACBOT_AMR_VDA5050_BROKER_USER, value: ardennes_001, default: null, level: device, service: '*'}
   - {name: ISAACBOT_AMR_VDA5050_BROKER_PASSWORD, value: null, default: null, level: device, service: '*', secret: true}
   - {name: ISAACBOT_AMR_VDA5050_BROKER_TLS, value: 'false', default: auto, level: device, service: '*'}
   - {name: ISAACBOT_AMR_VDA5050_MANUFACTURER, value: IsaacBot, default: IsaacBot, level: device, service: '*'}
