@@ -118,8 +118,8 @@ WORKDIR /root/ros2_ws/ardennes
 # and the isaacbot's adapter and bringup. isaacbot_amr_ros is cloned only for isaacbot_amr_msgs (mission, drive
 # mode and safety messages); nothing else of it is built or rosdep-resolved.
 # Keep ISAACBOT_AMR_ROS_REF equal in isaacbot_amr_platform, isaacbot_amr_orchestrator and here.
-ARG ISAACBOT_AMR_ROS_REF=feature/dcc_1020
-ARG ISAACBOT_AMR_VDA5050_REF=feat/automatic-localization
+ARG ISAACBOT_AMR_ROS_REF=main
+ARG ISAACBOT_AMR_VDA5050_REF=main
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
     && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_vda5050.git src/isaacbot_amr_vda5050 \

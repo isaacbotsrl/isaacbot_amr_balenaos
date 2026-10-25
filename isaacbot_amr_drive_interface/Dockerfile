@@ -24,7 +24,7 @@ RUN apt-get update \
 # up the latest commit; pin to a specific SHA with
 # `--build-arg ISAACBOT_AMR_DRIVE_INTERFACE_REF=<sha>` for a reproducible build instead.
 # Same convention as ISAACBOT_AMR_ROS_REF in the other services.
-ARG ISAACBOT_AMR_DRIVE_INTERFACE_REF=feat/automatic-localization
+ARG ISAACBOT_AMR_DRIVE_INTERFACE_REF=main
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_drive_interface.git /src \
     && git -C /src checkout ${ISAACBOT_AMR_DRIVE_INTERFACE_REF}
 
