@@ -68,6 +68,16 @@ version: '2.4'
 # ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE  driving mode at boot: assisted (lidar slow/stop) | manual
 # ISAACBOT_AMR_ORCH_NAV_USE_CAMERA      add the camera depth cloud to the local costmap (needs the camera
 #                                and a measured camera mount)
+# ISAACBOT_AMR_ORCH_NAV_PROFILE         indoor (global costmap = the map) | delivery (outdoor trips on a
+#                                live SLAM map: rolling 60 m global costmap)
+#
+# --- delivery (isaacbot_amr_delivery_portal; isaacbot-amr-vda5050) ---
+# ISAACBOT_AMR_DELIVERY_DATUM_LAT/LON   the pizzeria: origin of the fleet's shared ENU frame (= the
+#                                portal's DATUM_LAT/LON); empty = no delivery orders
+# ISAACBOT_AMR_DELIVERY_ENU_MAP_ID      the ENU frame's mapId (= the portal's ENU_MAP_ID)
+# ISAACBOT_AMR_DELIVERY_PARKED_HEADING_DEG  compass bearing the isaacbot faces parked at the shop;
+#                                seeds each trip's GPS alignment (GPS never drives Nav 2)
+# ISAACBOT_AMR_DELIVERY_CARGO_LOCK_OUTPUT   aux output 1..6 of the cargo box lock; 0 = none
 #
 # --- isaacbot-amr-sensors ---
 # ISAACBOT_AMR_SENSORS_ENABLE           run the sensor payload drivers at all
@@ -192,6 +202,7 @@ services:
       ISAACBOT_AMR_ORCH_DRIVE_MODE: 'true'
       ISAACBOT_AMR_ORCH_DRIVE_DEFAULT_MODE: 'assisted'
       ISAACBOT_AMR_ORCH_NAV_USE_CAMERA: 'false'
+      ISAACBOT_AMR_ORCH_NAV_PROFILE: 'indoor'
 
   # Sensor payload: GNSS (isaacbot_amr_gps), RS16 lidar, RealSense camera (isaacbot_amr_sensors) and the
   # perception nodes next to them (isaacbot_amr_perception: AprilTags, YOLO, terrain, fmoc person
@@ -284,6 +295,11 @@ services:
       ISAACBOT_AMR_VDA5050_MANUFACTURER: 'IsaacBot'
       ISAACBOT_AMR_VDA5050_SERIAL_NUMBER: 'ardennes'
       ISAACBOT_AMR_VDA5050_MAP_FRAME:
+      ISAACBOT_AMR_DELIVERY_DATUM_LAT:
+      ISAACBOT_AMR_DELIVERY_DATUM_LON:
+      ISAACBOT_AMR_DELIVERY_ENU_MAP_ID:
+      ISAACBOT_AMR_DELIVERY_PARKED_HEADING_DEG:
+      ISAACBOT_AMR_DELIVERY_CARGO_LOCK_OUTPUT:
     healthcheck:
       # Script in the image (TCP connect to the local broker when there is one); no `$` here
       # (balena's compose parser mangles `$$`).

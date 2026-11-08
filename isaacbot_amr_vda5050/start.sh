@@ -265,6 +265,17 @@ LAUNCH_ARGS=(
   serial_number:="${ISAACBOT_AMR_VDA5050_SERIAL_NUMBER:-ardennes}"
   map_frame:="${MAP_FRAME}"
 )
+# Delivery (isaacbot_amr_delivery_portal): each only when set (no datum = no delivery orders).
+for pair in datum_lat:ISAACBOT_AMR_DELIVERY_DATUM_LAT datum_lon:ISAACBOT_AMR_DELIVERY_DATUM_LON \
+            enu_map_id:ISAACBOT_AMR_DELIVERY_ENU_MAP_ID \
+            parked_heading_deg:ISAACBOT_AMR_DELIVERY_PARKED_HEADING_DEG \
+            cargo_lock_output:ISAACBOT_AMR_DELIVERY_CARGO_LOCK_OUTPUT; do
+  variable="${pair#*:}"
+  value="${!variable:-}"
+  if [ -n "${value}" ]; then
+    LAUNCH_ARGS+=("${pair%%:*}:=${value}")
+  fi
+done
 # Unset or empty = unnamespaced; the launch file then reads ISAACBOT_AMR_SYSTEM_NAMESPACE itself.
 if [ -n "${ISAACBOT_AMR_SYSTEM_NAMESPACE:-}" ]; then
   LAUNCH_ARGS+=(namespace:="${ISAACBOT_AMR_SYSTEM_NAMESPACE}")
