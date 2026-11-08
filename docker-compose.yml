@@ -72,12 +72,10 @@ version: '2.4'
 #                                live SLAM map: rolling 60 m global costmap)
 #
 # --- delivery (isaacbot_amr_delivery_portal; isaacbot-amr-vda5050) ---
-# ISAACBOT_AMR_DELIVERY_DATUM_LAT/LON   the pizzeria: origin of the fleet's shared ENU frame (= the
-#                                portal's DATUM_LAT/LON); empty = no delivery orders
-# ISAACBOT_AMR_DELIVERY_ENU_MAP_ID      the ENU frame's mapId (= the portal's ENU_MAP_ID)
-# ISAACBOT_AMR_DELIVERY_PARKED_HEADING_DEG  compass bearing the isaacbot faces parked at the shop;
-#                                seeds each trip's GPS alignment (GPS never drives Nav 2)
-# ISAACBOT_AMR_DELIVERY_CARGO_LOCK_OUTPUT   aux output 1..6 of the cargo box lock; 0 = none
+# The pizzeria location, its frame and the parked heading are set on the portal's Settings page
+# and reach the robot with every startTrip: nothing to set here for them. A delivery robot needs
+# ISAACBOT_AMR_SYSTEM_USE_GPS=true and ISAACBOT_AMR_ORCH_NAV_PROFILE=delivery, plus:
+# ISAACBOT_AMR_VDA5050_CARGO_LOCK_OUTPUT   aux output 1..6 of the cargo box lock; 0 = none
 #
 # --- isaacbot-amr-sensors ---
 # ISAACBOT_AMR_SENSORS_ENABLE           run the sensor payload drivers at all
@@ -295,11 +293,7 @@ services:
       ISAACBOT_AMR_VDA5050_MANUFACTURER: 'IsaacBot'
       ISAACBOT_AMR_VDA5050_SERIAL_NUMBER: 'ardennes'
       ISAACBOT_AMR_VDA5050_MAP_FRAME:
-      ISAACBOT_AMR_DELIVERY_DATUM_LAT:
-      ISAACBOT_AMR_DELIVERY_DATUM_LON:
-      ISAACBOT_AMR_DELIVERY_ENU_MAP_ID:
-      ISAACBOT_AMR_DELIVERY_PARKED_HEADING_DEG:
-      ISAACBOT_AMR_DELIVERY_CARGO_LOCK_OUTPUT:
+      ISAACBOT_AMR_VDA5050_CARGO_LOCK_OUTPUT:
     healthcheck:
       # Script in the image (TCP connect to the local broker when there is one); no `$` here
       # (balena's compose parser mangles `$$`).
