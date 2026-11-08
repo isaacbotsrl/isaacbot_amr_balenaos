@@ -142,6 +142,18 @@ balena push <fleet> --nocache
 clones sit in cached layers, so a plain `balena push` will happily ship stale application
 code.
 
+**Delivery branches (temporary).** Until the pizza-delivery work is merged, this branch builds
+`isaacbot_amr_vda5050` and `isaacbot_amr_orchestrator` from their **`delivery`** branches.
+These are the defaults of `ISAACBOT_AMR_VDA5050_REF` and `ISAACBOT_AMR_ORCHESTRATOR_REF` in the
+two Dockerfiles. Everything else still tracks `main`. Build with `--nocache` so new commits on
+those branches are picked up:
+
+```bash
+balena push <fleet> --nocache
+```
+
+Once those branches are merged, set both defaults back to `main`.
+
 Select specific application commits instead of branch tips with:
 
 ```bash

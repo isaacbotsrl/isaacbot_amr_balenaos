@@ -119,7 +119,9 @@ WORKDIR /root/ros2_ws/ardennes
 # mode and safety messages); nothing else of it is built or rosdep-resolved.
 # Keep ISAACBOT_AMR_ROS_REF equal in isaacbot_amr_platform, isaacbot_amr_orchestrator and here.
 ARG ISAACBOT_AMR_ROS_REF=main
-ARG ISAACBOT_AMR_VDA5050_REF=main
+# delivery: the delivery portal's orders (ENU frame, GPS alignment, startTrip, cargo actions).
+# Back to main once the isaacbot_amr_vda5050 `delivery` branch is merged.
+ARG ISAACBOT_AMR_VDA5050_REF=delivery
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
     && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_vda5050.git src/isaacbot_amr_vda5050 \

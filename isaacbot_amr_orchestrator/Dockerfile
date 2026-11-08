@@ -149,7 +149,9 @@ RUN mkdir -p /maps
 # isaacbot_amr_utils, which isaacbot_amr_mission_manager and isaacbot_amr_navigation depend on - the hardware
 # packages are never built, `--packages-up-to isaacbot_amr_autonomy` stops short of them.
 ARG ISAACBOT_AMR_ROS_REF=main
-ARG ISAACBOT_AMR_ORCHESTRATOR_REF=main
+# delivery: Nav 2's nav_profile (ISAACBOT_AMR_ORCH_NAV_PROFILE). Back to main once the
+# isaacbot_amr_orchestrator `delivery` branch is merged.
+ARG ISAACBOT_AMR_ORCHESTRATOR_REF=delivery
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_ros.git src/isaacbot_amr_ros \
     && git -C src/isaacbot_amr_ros checkout ${ISAACBOT_AMR_ROS_REF}
 RUN git clone https://github.com/isaacbotsrl/isaacbot_amr_orchestrator.git src/isaacbot_amr_orchestrator \
